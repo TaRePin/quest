@@ -851,7 +851,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='1.5';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='1.6';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -2735,8 +2735,8 @@ const game = {
 
     if(this.autoCare){
       // 「いのちだいじに」：回復魔法とバフ(とくぎ)以外は使わない
-      // 1) 味方の誰かがHP6割以下なら回復を最優先
-      const hurtC = this.aliveAllies().some(x=>x.hp<=x.maxHp*0.6);
+      // 1) 味方の誰かがHP6割以下なら回復を最優先（HPを持つ仲間のみ＝姫は除外）
+      const hurtC = this.targetableAllies().some(x=>x.hp<=x.maxHp*0.6);
       if(healSpell && hurtC && a.mp>=SPELLS[healSpell].mp){
         this.actions.push({ actor:a, type:'spell', spell:healSpell });
         this.allyQueue.shift(); this.inputNextAlly(); return;
@@ -2763,8 +2763,8 @@ const game = {
       this.allyQueue.shift(); this.inputNextAlly(); return;
     }
 
-    // 通常オート: 回復役は味方がHP4割以下なら回復を優先
-    const hurt = this.aliveAllies().some(x=>x.hp<=x.maxHp*0.4);
+    // 通常オート: 回復役は味方がHP4割以下なら回復を優先（HPを持つ仲間のみ＝姫は除外）
+    const hurt = this.targetableAllies().some(x=>x.hp<=x.maxHp*0.4);
     if(healSpell && hurt && a.mp>=SPELLS[healSpell].mp){
       this.actions.push({ actor:a, type:'spell', spell:healSpell });
       this.allyQueue.shift(); this.inputNextAlly(); return;
@@ -2914,7 +2914,7 @@ const game = {
   nextAction(){
     // 勝敗判定
     if(this.aliveEnemies().length===0){ this.victory(); return; }
-    if(this.aliveAllies().length===0){ this.defeat(); return; }
+    if(this.targetableAllies().length===0){ this.defeat(); return; }
     if(this.actIndex>=this.actions.length){ this.startTurn(); return; }
     const act=this.actions[this.actIndex++];
     const actor=act.actor;
@@ -3027,9 +3027,9 @@ const game = {
       const node=this.enemyNode(target.slot);
       const bar=node&&node.querySelector('.b-uhp i'); if(bar) bar.style.width=Math.max(0,target.hp/target.maxHp*100)+'%';
     }
-    // 攻撃ごとの味方回復：最もHP割合の低い生存味方を回復
+    // 攻撃ごとの味方回復：最もHP割合の低い生存味方を回復（HPを持つ仲間のみ）
     const heal=this.rollBalmungHeal();
-    const tgt=this.aliveAllies().sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
+    const tgt=this.targetableAllies().sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
     let healLine='';
     if(tgt){ const before=tgt.hp; tgt.hp=Math.min(tgt.maxHp,tgt.hp+heal); const h=tgt.hp-before;
       if(h>0){ this.fxHeal(); healLine=`\nまけんが ${tgt.name}の HPを ${h} かいふく！`; } }
@@ -3043,8 +3043,8 @@ const game = {
   doAllySpell(actor, key, target){
     const s=SPELLS[key]; actor.mp-=s.mp;
     if(s.type==='heal'){
-      // 最もHP割合の低い生存味方を回復
-      const tgt=this.aliveAllies().sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
+      // 最もHP割合の低い生存味方を回復（HPを持つ仲間のみ＝姫は除外）
+      const tgt=this.targetableAllies().sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
       const before=tgt.hp; tgt.hp=Math.min(tgt.maxHp,tgt.hp+s.amt); const h=tgt.hp-before;
       audio.se('heal'); this.fxHeal(); this.renderParty();
       this.message([`${actor.name}は ${s.name}を となえた！\n${tgt.name}の HPが ${h} かいふく！`],()=>this.cont());
