@@ -93,6 +93,8 @@
   .hbar i{display:block;height:100%;transition:width .3s;}
   .hbar.hp i{background:linear-gradient(90deg,#7a201a,var(--hp));}
   .hbar.lovebar i{display:block;height:100%;background:linear-gradient(90deg,#ff5fa2,#ffc0e0);}
+  .love-thr{color:#c98ad0;font-size:9px;}
+  .love-thr.ready{color:#7fff9f;font-weight:bold;}
   /* バーサーカー：HP75%以下で橙、30%以下(fury発動圏)で燃える赤＋点滅 */
   .hbar.hp.fury-warn i{background:linear-gradient(90deg,#7a4a10,#ffae3a);}
   .hbar.hp.fury-on i{background:linear-gradient(90deg,#7a1010,#ff5a2a);animation:furyPulse .6s steps(1) infinite;}
@@ -301,7 +303,7 @@
     </div>
     <div id="bParty"></div>
     <div id="bAuto">AUTO ▢</div>
-    <div id="bLove"><span class="lv-label">💗あい</span><div class="lv-bar"><i id="bLoveFill"></i></div></div>
+    <div id="bLove"><span class="lv-label" id="bLoveLabel">💗あい</span><div class="lv-bar"><i id="bLoveFill"></i></div></div>
     <div id="bMsg" class="win"><div id="bMsgText"></div></div>
     <div id="bCmd" class="win"></div>
     <div id="bSub" class="win"></div>
@@ -868,13 +870,14 @@ function freshPlayer(){
             abyssCleared:false },
     quests:{},                        // サブクエスト進捗 {questId:{state,count}}
     seen:[], chests:[],
-    loveGauge:0,                      // あいゲージ(0-100)。満タンで戦闘中あいのうた自動発動
+    loveGauge:0,                      // あいゲージ(0-300)。しきい値に達すると戦闘中あいのうた自動発動
+    loveLevel:100,                    // 発動しきい値(100/200/300)。姫の名前タップで切替
   };
 }
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='1.7';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='1.8';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -2692,7 +2695,7 @@ const game = {
 
   startBattle(arg){
     // とくぎ効果を初期化（前の戦闘の持ち越し防止）
-    this.guardAllTurns=0; this.provokeTurns=0; this.provokeTarget=null; this.loveTurns=0;
+    this.guardAllTurns=0; this.provokeTurns=0; this.provokeTarget=null; this.loveTurns=0; this.lovePeak=false;
     // arg: 敵キー1つ(ボス) または 敵キー配列(グループ)
     let keys = Array.isArray(arg)?arg:[arg];
     let f=this.p.map==='cave2'?1.15:(this.p.map==='cave1'?1.05:1);
@@ -2753,7 +2756,7 @@ const game = {
           if(hero._loveAtk){ hero.atk-=hero._loveAtk; hero._loveAtk=0; }
           if(hero._loveDef){ hero.def-=hero._loveDef; hero._loveDef=0; }
           if(hero._loveHpUp){ hero.maxHp-=hero._loveHpUp; if(hero.hp>hero.maxHp)hero.hp=hero.maxHp; hero._loveHpUp=0; }
-          hero._loveTurns=0; hero._loveStat=null;
+          hero._loveTurns=0; hero._loveStat=null; hero._loveWeaponBoost=false; this.lovePeak=false;
           this.renderParty();
         }
       }
@@ -2805,35 +2808,58 @@ const game = {
   addLove(n){
     if(!this.p || !this.p.party || !this.p.party.includes('princess')) return;
     const before=this.p.loveGauge||0;
-    this.p.loveGauge=Math.min(100, before + n);
-    if(this.mode==='field') this.updateStrip();   // フィールド表示を更新
+    this.p.loveGauge=Math.min(300, before + n);   // 最大300%まで
+    if(this.mode==='field') this.updateStrip();
     if(this.mode==='battle') this.renderLoveGauge();
   },
-  // 戦闘ターン開始時：ゲージ満タンなら自動であいのうた発動
+  // 発動しきい値を 100→200→300→100 と切り替え（姫の名前タップ）
+  cycleLoveLevel(){
+    const cur=this.p.loveLevel||100;
+    this.p.loveLevel = cur>=300?100:cur+100;
+    audio.se('select');
+    if(this.mode==='field') this.updateStrip();
+    if(this.mode==='battle') this.renderLoveGauge();
+  },
+  // 戦闘ターン開始時：ゲージが「発動しきい値」に達していれば自動発動
   tryAutoLoveSong(){
     if(!this.p.party.includes('princess')) return;
-    if((this.p.loveGauge||0) < 100) return;
+    const need=this.p.loveLevel||100;
+    if((this.p.loveGauge||0) < need) return;
     if(this.loveTurns>0) return;                   // 効果中は重ねない
-    this.p.loveGauge=0;                            // 消費
-    this._pendingLoveSong=true;                    // このターンの先頭で歌う
+    this._songLevel=need;                          // 発動した段階(100/200/300)を記録
+    this.p.loveGauge -= need;                      // しきい値ぶん消費
+    this._pendingLoveSong=true;
   },
-  // あいのうたの効果を勇者に適用（共通）
+  // あいのうたの効果を勇者に適用（段階：100/200/300）
   applyLoveSong(done){
     const hero=this.allies.find(a=>a.isHero);
     if(!hero){ if(done)done(); return; }
+    const lvl=this._songLevel||100;
     const buffAtk = Math.random()<0.5;
-    hero._loveTurns=4; hero._loveStat=buffAtk?'atk':'def';
+    // 効果ターン：100=4 / 200・300=5
+    const turns = lvl>=200 ? 5 : 4;
+    hero._loveTurns=turns; hero._loveStat=buffAtk?'atk':'def';
     hero._loveHpUp=100; hero.maxHp+=100;
     if(buffAtk){ hero._loveAtk=100; hero.atk+=100; } else { hero._loveDef=100; hero.def+=100; }
-    hero.hp=hero.maxHp; this.loveTurns=4;
-    audio.se('levelup'); this.fxHeal(); this.fxFuryOn&&this.fxFuryOn(); this.renderParty(); this.renderLoveGauge();
-    this.message([
+    // 300%：武器強化（攻撃+20）＋確率系効果の反転
+    const lines=[
       'フィーナは 「あいのうた」を うたいはじめた！',
       'やさしい しらべが せんじょうに ひびきわたる──',
-      'ゆうしゃは 「あい」に めざめた！（4ターン）',
+      `ゆうしゃは 「あい」に めざめた！（${turns}ターン）`,
       'さいだいHPが 100 あがり、HPが ぜんかいふく！',
       buffAtk ? 'こうげきりょくが 100 あがった！' : 'ぼうぎょりょくが 100 あがった！'
-    ],()=>{ if(done)done(); });
+    ];
+    if(lvl>=200) lines.push('あいの ちからが たかまり、こうかじかんが のびた！');
+    if(lvl>=300){
+      hero._loveAtk=(hero._loveAtk||0)+20; hero.atk+=20;
+      hero._loveWeaponBoost=true;            // 確率系効果の反転フラグ
+      this.lovePeak=true;
+      lines.push('💗さいだいの あい！ ぶきの ちからが かくせいし こうげき+20！');
+      lines.push('ぶきの とくしゅこうかが はんてんし、はつどう しやすく なった！');
+    }
+    hero.hp=hero.maxHp; this.loveTurns=turns;
+    audio.se('levelup'); this.fxHeal(); this.fxFuryOn&&this.fxFuryOn(); this.renderParty(); this.renderLoveGauge();
+    this.message(lines,()=>{ if(done)done(); });
   },
   autoChoose(){
     const a=this.curActor;
@@ -3080,7 +3106,7 @@ const game = {
     const miss=Math.random()<0.04;
     if(miss){ audio.se('miss'); this.fxTextOn('enemy',target.slot,'MISS','miss');
       this.message([`${actor.name}の こうげき！\nしかし ミスした！`],()=>this.cont()); return; }
-    const crit=Math.random()<0.07;
+    const crit=Math.random()<this.critChance(actor);
     let dmg=Math.max(1,actor.atk-target.def+this.randi(-2,2)); if(crit) dmg=Math.round(dmg*1.8);
     let furyLine='';
     if(this.furyActive(actor)){ dmg=Math.round(dmg*2); furyLine='\n🔥バーサーカーの ぶじ！ ダメージ2ばい！';
@@ -3103,6 +3129,11 @@ const game = {
     return 4;
   },
   // ブルトガングの回復量：10〜40（15付近が高確率）
+  // 会心率：通常7%。300%「あい」で武器の確率効果が反転＝93%
+  critChance(actor){
+    if(actor && actor.isHero && actor._loveWeaponBoost) return 0.93;
+    return 0.07;
+  },
   rollBalmungHeal(){
     const r=Math.random();
     if(r<0.55) return 13+Math.floor(Math.random()*5);   // 13〜17
@@ -3116,7 +3147,7 @@ const game = {
     if(!target||!target.alive){ target=this.aliveEnemies()[0]; }
     if(!target){ this.cont(); return; }
     const head = (n===1) ? `${actor.name}の こうげき！（${hits}れんげき！）${this.furyActive(actor)?' 🔥ぶじ！':''}\n` : '';
-    const crit=Math.random()<0.07;
+    const crit=Math.random()<this.critChance(actor);
     let dmg=Math.max(1,actor.atk-target.def+this.randi(-2,2)); if(crit) dmg=Math.round(dmg*1.8);
     if(this.furyActive(actor)){ dmg=Math.round(dmg*2); if(n===1) this.fxFuryOn(); }
     audio.se('hit'); this.flashEnemyOn(target.slot); this.fxTextOn('enemy',target.slot,dmg,crit?'crit':'');
@@ -3590,9 +3621,13 @@ const game = {
     const has=this.p&&this.p.party&&this.p.party.includes('princess');
     box.style.display = has ? 'flex' : 'none';
     if(!has) return;
-    const g=Math.max(0,Math.min(100,this.p.loveGauge||0));
-    const fill=document.getElementById('bLoveFill'); if(fill) fill.style.width=g+'%';
-    box.classList.toggle('full', g>=100);
+    const g=Math.max(0,Math.min(300,this.p.loveGauge||0));
+    const lvl=this.p.loveLevel||100;
+    const fill=document.getElementById('bLoveFill'); if(fill) fill.style.width=Math.min(100,g/3)+'%';
+    const lab=document.getElementById('bLoveLabel'); if(lab) lab.textContent=`💗あい ${g}% [${lvl}]`;
+    box.classList.toggle('full', g>=lvl);
+    box.style.cursor='pointer';
+    box.onclick=(e)=>{ e.stopPropagation(); this.cycleLoveLevel(); };
   },
   renderParty(){
     const wrap=document.getElementById('bParty'); wrap.innerHTML='';
@@ -3872,15 +3907,21 @@ const game = {
                   noVitals:!!(a.noVitals||st.noVitals)}); });
     wrap.innerHTML=units.map(u=>{
       if(u.noVitals){
-        const g=Math.max(0,Math.min(100,p.loveGauge||0));
-        return `<div class="ps-unit ps-love"><div class="ps-name">${u.name} <span class="ps-lv">♪</span></div>`
-          +`<div><span class="ps-hp" style="background:#c45a9a">あい</span> ${g}%</div>`
-          +`<div class="hbar lovebar"><i style="width:${g}%"></i></div></div>`;
+        const g=Math.max(0,Math.min(300,p.loveGauge||0));
+        const lvl=p.loveLevel||100;
+        const barPct=Math.min(100, (g% 100===0&&g>0)?100:(g%100));   // 現在の段の進捗
+        const ready = g>=lvl;
+        return `<div class="ps-unit ps-love" id="psPrincess"><div class="ps-name">${u.name} <span class="ps-lv">♪</span></div>`
+          +`<div><span class="ps-hp" style="background:#c45a9a">あい</span> ${g}% <span class="love-thr${ready?' ready':''}">[${lvl}%]</span></div>`
+          +`<div class="hbar lovebar"><i style="width:${Math.min(100,g/3)}%"></i></div></div>`;
       }
       const hpPct=Math.max(0,u.hp)/u.maxHp*100, mpPct=u.maxMp?u.mp/u.maxMp*100:0;
       const mpLine=u.maxMp>0?`<div><span class="ps-mp">MP</span> ${u.mp}/${u.maxMp}</div><div class="hbar mp"><i style="width:${mpPct}%"></i></div>`:'';
       return `<div class="ps-unit${u.hp<=0?' downed':''}"><div class="ps-name">${u.name} <span class="ps-lv">Lv${u.lv}</span></div><div><span class="ps-hp">HP</span> ${Math.max(0,u.hp)}/${u.maxHp}</div><div class="hbar hp"><i style="width:${hpPct}%"></i></div>${mpLine}</div>`;
     }).join('');
+    // 姫の枠をタップ/クリックで しきい値(100/200/300)を切替
+    const pp=document.getElementById('psPrincess');
+    if(pp){ pp.style.cursor='pointer'; pp.onclick=()=>this.cycleLoveLevel(); }
   },
   pick(a){ return a[Math.floor(Math.random()*a.length)]; },
   randi(a,b){ return a+Math.floor(Math.random()*(b-a+1)); },
