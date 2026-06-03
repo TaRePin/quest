@@ -61,7 +61,15 @@
   #creditsInner h2{font-size:13px;letter-spacing:6px;margin:0 0 40px;color:#9fc0ff;font-weight:400;}
   #creditsInner .role{font-size:11px;letter-spacing:3px;color:#7fa0d0;margin-top:30px;}
   #creditsInner .name{font-size:17px;letter-spacing:1px;margin-top:3px;}
-  #creditsInner .fin{font-size:30px;letter-spacing:8px;color:#ffe7a0;margin:60px 0 120px;}
+  #creditsInner .gap{height:30px;}
+  #creditsInner .fin{font-size:46px;letter-spacing:14px;color:#ffe7a0;font-weight:bold;
+    text-shadow:0 0 24px rgba(255,231,160,.7);margin:50px 0;}
+  #creditsInner .contmsg{font-size:14px;letter-spacing:2px;color:#9fc0ff;margin-top:20px;
+    animation:bl 1.4s steps(1) infinite;}
+  .cs-title{font-size:38px;letter-spacing:6px;color:#ffe7a0;font-weight:bold;
+    text-shadow:0 0 22px rgba(255,231,160,.6);}
+  .cs-sub{font-size:15px;color:#cfe0ff;margin-top:24px;letter-spacing:2px;}
+  .cs-sub2{font-size:12px;color:#8aa0c8;margin-top:14px;letter-spacing:1px;}
   .theend{font-size:46px;letter-spacing:14px;color:#ffe7a0;text-shadow:0 0 24px rgba(255,231,160,.7);
     animation:theEndIn 2.4s ease-out forwards;}
   @keyframes theEndIn{0%{opacity:0;transform:scale(.4);letter-spacing:2px;}
@@ -197,6 +205,9 @@
   .p-unit.downed{opacity:.45;}
   .p-unit .pn{color:var(--gold);}
   .p-unit .pn-lv{color:#bfe3ff;font-size:10px;font-weight:bold;}
+  .p-unit.p-novital{border-color:#e79ad0;background:linear-gradient(180deg,#2a1424,#1a0e18);}
+  .p-unit.p-novital .pn-role{color:#f0b8de;font-size:10px;margin-top:2px;}
+  .love-badge{color:#ff8ad0;font-size:10px;font-weight:bold;animation:bl 1s steps(1) infinite;}
   .p-unit .hbar{margin-top:2px;}
   #bAuto{position:absolute;right:8px;top:8px;z-index:7;font-size:12px;padding:5px 10px;border:2px solid #888;border-radius:5px;background:#000;cursor:pointer;letter-spacing:.08em;}
   #bAuto.on{border-color:var(--gold);color:var(--gold);box-shadow:0 0 6px rgba(245,215,94,.5);}
@@ -357,7 +368,7 @@ const MAPS = {
     "~T....MM.....M...T.~",
     "~..TT...........T..~",
     "~T...........T..O.~",
-    "~~~~~~~~~~~~~~~~~~~~",
+    "~~~~~~~~S~~~~~~~~~~~",
   ]},
   castle:{ indoor:true, rows:[
     "###########",
@@ -542,7 +553,8 @@ const WARPS = [
 const NPCS = {
   castle:[
     { x:5,y:2, emoji:'🤴', act:'king' },
-    { x:6,y:2, emoji:'👸', act:'princess', showIfFlag:'won', hideIfFlagOn:'princessLeft' },
+    { x:6,y:2, emoji:'👸', act:'princess', showIfFlag:'won', hideIfFlagOn:'princessJoined' },
+    { x:8,y:2, emoji:'🧓', act:'kud', showIfFlag:'departed' },
     { x:1,y:4, emoji:'💂', talk:['へいし「ましょうの しろは にしの どうくつ。その さいかいそうに ガルゾスが おる。」'] },
     { x:9,y:4, emoji:'💂', talk:['へいし「みなみの むらの けんじゃが ちからに なってくれるはず。」'] },
     { x:5,y:6, emoji:'💂', talk:['へいし「フィールドの みなみに 『てんしょくの しろ』が ある。」','へいし「レベル10を こえたら、そこで かくべつの ちからに めざめられる ぞ。」'] },
@@ -573,7 +585,7 @@ const NPCS = {
     { x:7,y:3, emoji:'💀', talk:['しゃれこうべ「…さいかいそうへ おりるのだ…」'] },
   ],
   cave2:[
-    { x:5,y:1, emoji:'👹', act:'boss' },
+    { x:5,y:1, emoji:'👹', act:'boss', hideIfFlagOn:'won' },
     { x:2,y:4, emoji:'☠️', act:'skull' },
   ],
   // ===== エルフ国 NPC =====
@@ -667,6 +679,8 @@ const ALLIES = {
     lv:1, maxHp:30, maxMp:0,  atk:8, def:5, spd:8,  spells:[], learn:{4:'',8:''} },
   sage:{ name:'けんじゃ', art:'🧙‍♂️',
     lv:1, maxHp:28, maxMp:36, atk:7, def:5, spd:13, spells:['heal','flame'], learn:{4:'bigflame',6:'bigheal',10:'bigflame'} },
+  princess:{ name:'フィーナ', art:'👸',
+    lv:1, maxHp:0, maxMp:0, atk:0, def:0, spd:12, spells:[], noVitals:true },
 };
 
 const SPELLS = {
@@ -683,6 +697,8 @@ const SKILLS = {
     desc:'みかた ぜんいんの ひばダメージを 3ターン 20%カット' },
   provoke:{ name:'ちょうはつ', mp:0, kind:'provoke', once:true,
     desc:'てきを じぶんに あつめ、ぼうぎょ+30（2ターン・1せんとう1かい）' },
+  sing:{ name:'あいのうた', mp:0, kind:'lovesong', once:true,
+    desc:'ゆうしゃが「あい」に めざめる（4ターン・1せんとう1かい）' },
 };
 
 // 転職: 一定Lvで勇者が転職できる上位職
@@ -816,7 +832,8 @@ function freshPlayer(){
     flags:{ metKing:false, hasKey:false, doorOpen:false, won:false, joinWarrior:false, joinSage:false,
             excaliburStage:0, cursed:false, jobChanged:false, jobChanged2:false,
             elfQuest:false, elfDoorOpen:false, elfHasKey:false, elfCleared:false, elfBasket:false,
-            elfReturnDoor:false, backFromElf:false, finalEnd:false },
+            elfReturnDoor:false, backFromElf:false, finalEnd:false,
+            departed:false, princessJoined:false, metKud:false, gotShip:false },
     quests:{},                        // サブクエスト進捗 {questId:{state,count}}
     seen:[], chests:[],
   };
@@ -824,7 +841,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='1.1';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='1.4';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1167,10 +1184,10 @@ const game = {
     // 仲間を Lv15 で加入
     p.flags.joinWarrior=true; p.flags.joinSage=true;
     this.joinAlly('warrior'); this.joinAlly('sage');
-    // 物語フラグ: ガルゾス撃破・エルフ受諾済み（塔20階の門が出る状態）
+    // 物語フラグ: もとの国のボス(ガルゾス)撃破済み・エルフ受諾済み（塔20階の門が出る状態）
     p.flags.metKing=true; p.flags.hasKey=true; p.flags.doorOpen=true;
-    p.flags.won=true; p.flags.elfQuest=true;
-    p.flags.joinWarrior=true; p.flags.joinSage=true;
+    p.flags.won=true;          // ★もとの国のボス ガルゾス 撃破済み
+    p.flags.elfQuest=true;
     // エルフ国に着いた状態でスタート（世界樹の前）
     if(p.towerReturn){ p.elfReturnWorld={x:p.towerReturn.x,y:p.towerReturn.y}; }
     p.map='elf'; p.x=6; p.y=7; p.dir='up';   // 世界樹の すぐ前
@@ -1179,7 +1196,8 @@ const game = {
     this.enterField(); audio.bgm(this.bgmFor());
     this.message([
       '【デバッグ スタート：エルフのくに】',
-      'ガルゾス撃破ご、エルフのくに とうちゃく じてん。',
+      'もとの くにの ボス ガルゾスは げきは ずみ。',
+      'エルフのくに とうちゃく じてん（せかいじゅの まえ）。',
       'Lv15 ゆうしゃ・ブルトガングそうび、せんし・けんじゃも Lv15。',
       'しんでんで 2じしょく、まち・さとで エルフの そうびが かえる。',
       'ねもとの どうくつで かぎ→とびら→ボス の じゅんに すすもう。'
@@ -1404,6 +1422,10 @@ const game = {
     if(p.map==='elfcave' && nx===11 && ny===5 && !p.flags.elfHasKey){
       this.elfKeyTalk(); return;
     }
+    // 南の海の船に乗る → 新大陸へ出航（Coming Soon）
+    if(p.map==='world' && t==='S'){
+      this.boardShip(); return;
+    }
     const w=WARPS.find(w=>w.map===p.map&&w.x===nx&&w.y===ny);
     if(w){
       if(t==='>') this.promptWarp(w);   // 階段だけ「すすむ/まだ」を聞く
@@ -1552,6 +1574,7 @@ const game = {
     if(npc.talk){ this.message(npc.talk); return; }
     switch(npc.act){
       case 'king': this.kingTalk(); break;
+      case 'kud': this.kudTalk(); break;
       case 'sage': this.sageTalk(); break;
       case 'warrior': this.warriorTalk(); break;
       case 'shop_weapon1': this.openShop('weapon1'); break;
@@ -1595,14 +1618,93 @@ const game = {
     else if(p.flags.elfCleared && p.flags.backFromElf && !p.flags.finalEnd){
       this.finalCeremony();
     }
+    else if(p.flags.finalEnd && !p.flags.departed){
+      this.departureEvent();
+    }
     else if(p.flags.finalEnd){
-      this.message(['アルディアおう「ゆうしゃ よ、そなたの たびに さちあれ。」']);
+      this.message(['アルディアおう「ゆうしゃ よ、そなたの たびに さちあれ。」','アルディアおう「みなみの みなとに クドじいの ふねが ある そうじゃ。」']);
     }
     else this.message(['アルディアおう「よくぞ せかいを すくった、ゆうしゃ よ！」']);
   },
+  // クリア後：王に話すと新大陸への旅立ち。仲間2人と別れ、姫が加わる
+  departureEvent(){ const p=this.p;
+    this.message([
+      'ゆうしゃ「おうさま、わたしは あらたな たいりくを めざします。」',
+      'ゆうしゃ「みしらぬ うみの むこうへ、たびに でようと おもいます。」',
+      'アルディアおう「ほう…ゆうしゃ の たびだち か。とめは せぬ。」',
+      'せんし「ゆうしゃ、ここまで よく やった。おれは この くにを まもる。」',
+      'けんじゃ「わたしも この ちに のこり、わかき ものを そだてよう。」',
+      'せんし・けんじゃ「たびの ぶじを いのって いる！」',
+      'ふたりの なかまと かたく あくしゅを かわした──',
+      'フィーナ「ゆうしゃ さま。わたくしも つれて いって くださいますね？」',
+      'ゆうしゃ「もちろん。きみと ともに、あたらしい せかいへ。」',
+      'フィーナが なかまに くわわった！',
+    ],()=>{
+      // 仲間2人を外し、姫を加える
+      p.party = p.party.filter(k=>k!=='warrior'&&k!=='sage');
+      p.flags.departed=true;
+      p.flags.princessJoined=true;
+      if(!p.party.includes('princess')) p.party.push('princess');
+      // 姫の戦闘ステータスを用意（HP/MPは持たないが枠は出す）
+      p.allyState['princess']={ lv:p.lv, maxHp:0, hp:0, maxMp:0, mp:0, atk:0, def:0, spd:12,
+                                spells:[], noVitals:true, singUsed:false };
+      audio.se('levelup'); this.updateStrip();
+      this.message([
+        'アルディアおう「みなみの みなとに、ふるなじみの クドじいが きて おる。」',
+        'アルディアおう「ふねの ことは クドじいに きくと よい。」',
+        'クドじいは いま、この しろの なかに いる そうだ。',
+      ],()=>{ p.flags.metKud=false; this.save(); });
+    });
+  },
+  // クド爺さん：船の場所を教える
+  kudTalk(){ const p=this.p;    p.flags.metKud=true;
+    if(!p.flags.gotShip){
+      this.message([
+        'クドじい「おお、でんせつの ゆうしゃ さま！ わしは ふなのり クド。」',
+        'クドじい「あらたな たいりくへ いくには、ふねが いる。」',
+        'クドじい「わしの ふねを つかうと よい。みなみの うみべに つけて ある。」',
+        'クドじい「しろを でて みなみへ。うみべの ふね(⛵)に のりこむのじゃ。」',
+        'クドじい「じゅんびが できたら、いつでも しゅっぱつ じゃ！」',
+      ],()=>{ this.save(); });
+    } else {
+      this.message(['クドじい「ふねは みなみの うみべ じゃ。きを つけてな。」']);
+    }
+  },
+  // 船に乗る：新大陸へ出航 → Coming Soon（その場で停止・セーブ）
+  boardShip(){ const p=this.p;
+    if(!p.flags.departed){
+      this.message(['ちいさな ふねが ある。','だれの ものだろう？ いまは のれない ようだ。']); return;
+    }
+    if(!p.flags.metKud){
+      this.message(['クドじいの ふねの ようだ。','まずは しろで クドじいに はなしを きこう。']); return;
+    }
+    p.flags.gotShip=true;
+    audio.stopBgm(); audio.se('warp');
+    this.save();
+    this.message([
+      'ゆうしゃ「フィーナ、じゅんびは いいかい？」',
+      'フィーナ「ええ。あなたと ならば どこへでも。」',
+      'ふたりを のせ、ふねは みなみの うみへ こぎだした──',
+      'あらたな たいりくでの ぼうけんは、また べつの ものがたり。',
+    ],()=>{ this.showComingSoon(); });
+  },
+  // Coming Soon を表示したまま停止（セーブ済み）
+  showComingSoon(){
+    this.mode='credits'; // 操作を止める
+    const cr=document.getElementById('credits');
+    const inner=document.getElementById('creditsInner');
+    cr.classList.add('show');
+    inner.className=''; inner.style.cssText='top:0;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;';
+    inner.innerHTML='<div class="cs-title">COMING SOON…</div>'
+      +'<div class="cs-sub">つづきの ぼうけんは また こんど</div>'
+      +'<div class="cs-sub2">（ぼうけんの しょは きろく されました）</div>';
+    cr.onclick=(e)=>{ e.stopPropagation(); e.preventDefault(); }; // タップ無効（停止したまま）
+  },
   // エルフ国クリア後、城での最終式典 → 縁結び → エンドロール
-  finalCeremony(){ const p=this.p;
-    p.flags.finalEnd=true;
+  finalCeremony(){ const p=this.p;    p.flags.finalEnd=true;
+    // クリア後にCONTINUEしたら王と姫の前で再開するよう位置を固定して保存
+    p.map='castle'; p.x=5; p.y=3; p.dir='up';
+    this.save();
     audio.stopBgm();
     this.message([
       'アルディアおう「おお、ゆうしゃ よ！ エルフの くにも すくった と いうのか！」',
@@ -1642,45 +1744,41 @@ const game = {
       ['role','RUNS ON'],['name','HTML5 / JavaScript / Canvas'],
       ['name','Thank you for playing!'],
       ['name','Stay tuned for the next ALDIA FANTASY!'],
+      ['gap',''],['gap',''],
+      ['fin','THE END'],
+      ['contmsg','▶ CONTINUE で つづきの ぼうけんへ'],
     ];
     const inner=document.getElementById('creditsInner');
-    inner.className='';
+    inner.className=''; inner.style.cssText='';
     inner.innerHTML=roll.map(([c,t])=>`<div class="${c}">${t}</div>`).join('');
     const cr=document.getElementById('credits');
     cr.classList.add('show');
-    // エンドロール中はタップ/クリックを受け付けない
+    // エンドロール中（中央停止まで）はタップ/クリックを受け付けない
     cr.onclick=(e)=>{ e.stopPropagation(); e.preventDefault(); };
-    // リフローを挟んでからアニメ開始
+    // レイアウト確定後、THE ENDが画面中央に来るスクロール量を計算
     void inner.offsetWidth;
-    inner.classList.add('run');
-    // スクロール終了 → THE END を中央に固定表示
-    const onScrollEnd=()=>{ inner.removeEventListener('animationend',onScrollEnd);
-      // クレジットが流れきって画面が空になったあと、少し間をおいてからTHE END
-      inner.classList.remove('run');
-      inner.innerHTML='';
-      setTimeout(()=>this.showTheEnd(), 1400);
+    const fin=inner.querySelector('.fin');
+    const screenH=cr.clientHeight;
+    // 初期位置は top:100%（画面下端）。finの中心が画面中央に来るよう移動量を求める
+    const finCenter = fin.offsetTop + fin.offsetHeight/2;     // inner内でのfin中心
+    const endTop = (screenH/2) - finCenter;                   // innerのtopをここまで動かす(px)
+    inner.style.top = screenH+'px';                           // 開始：画面下
+    const total = screenH - endTop;                           // 総移動量(px)
+    const speed = 70;                                         // px/秒（数字を上げると速い）
+    const dur = Math.max(14, total/speed);                    // 所要秒（最低14秒）
+    inner.style.transition = `top ${dur}s linear`;
+    void inner.offsetWidth;
+    inner.style.top = endTop+'px';                            // 中央でTHE ENDが止まる
+    // スクロール完了 → タップでタイトルへ
+    const onEnd=()=>{ inner.removeEventListener('transitionend',onEnd);
+      const hint=document.createElement('div'); hint.className='endhint'; hint.textContent='タップ／クリックで タイトルへ';
+      hint.style.cssText='position:absolute;left:0;right:0;bottom:18%;text-align:center;';
+      cr.appendChild(hint);
+      cr.onclick=(e)=>{ e.stopPropagation(); e.preventDefault();
+        cr.classList.remove('show'); audio.stopBgm(); this.save(); location.reload();
+      };
     };
-    inner.addEventListener('animationend',onScrollEnd);
-  },
-  // THE END を画面中央にアニメ表示して固定。3秒後にタップでタイトルへ
-  showTheEnd(){
-    const cr=document.getElementById('credits');
-    const inner=document.getElementById('creditsInner');
-    inner.classList.remove('run');
-    inner.innerHTML='<div class="theend">THE END</div>';
-    inner.style.top='0'; inner.style.height='100%';
-    inner.style.display='flex'; inner.style.flexDirection='column';
-    inner.style.justifyContent='center'; inner.style.alignItems='center';
-    // 3秒たってからタップを受け付ける
-    let ready=false;
-    setTimeout(()=>{ ready=true;
-      const hint=document.createElement('div'); hint.className='endhint'; hint.textContent='タップで タイトルへ';
-      inner.appendChild(hint);
-    }, 3000);
-    cr.onclick=(e)=>{ e.stopPropagation(); e.preventDefault();
-      if(!ready) return;
-      cr.classList.remove('show'); audio.stopBgm(); this.save(); location.reload();
-    };
+    inner.addEventListener('transitionend',onEnd);
   },
   joinAlly(key){
     if(this.p.party.includes(key)) return;
@@ -1876,6 +1974,7 @@ const game = {
 
   // ===== ボス戦（転職の警告つき）=====
   bossTalk(){ const p=this.p;
+    if(p.flags.won){ this.message(['ガルゾスは すでに たおれた。','ここには もう やみの けはいは ない。']); return; }
     const warn = !p.flags.jobChanged
       ? ['ガルゾス「フハハ… てんしょくも せずに きたか。」','ガルゾス「その ていどの ちからで わしを たおせると おもうな！」']
       : ['ガルゾス「ほう… てんしょくしたか。だが むだだ！」'];
@@ -2435,9 +2534,12 @@ const game = {
       atk:this.atk(), def:this.def(), spd:this.spd(), spells:p.spells.slice(), alive:p.hp>0, status:p.status||'' });
     p.party.forEach(key=>{
       const a=ALLIES[key], st=p.allyState[key];
+      const noVitals=!!(a.noVitals||st.noVitals);
       allies.push({ side:'ally', isHero:false, key, name:a.name, art:a.art, lv:st.lv,
         hp:st.hp, maxHp:st.maxHp, mp:st.mp, maxMp:st.maxMp,
-        atk:st.atk, def:st.def, spd:st.spd, spells:st.spells.slice(), alive:st.hp>0, status:st.status||'' });
+        atk:st.atk, def:st.def, spd:st.spd, spells:st.spells.slice(),
+        noVitals, alive: noVitals ? true : st.hp>0,   // 姫はHP概念なし＝常に「いる」
+        status:st.status||'' });
     });
     return allies;
   },
@@ -2451,7 +2553,7 @@ const game = {
 
   startBattle(arg){
     // とくぎ効果を初期化（前の戦闘の持ち越し防止）
-    this.guardAllTurns=0; this.provokeTurns=0; this.provokeTarget=null;
+    this.guardAllTurns=0; this.provokeTurns=0; this.provokeTarget=null; this.loveTurns=0;
     // arg: 敵キー1つ(ボス) または 敵キー配列(グループ)
     let keys = Array.isArray(arg)?arg:[arg];
     let f=this.p.map==='cave2'?1.15:(this.p.map==='cave1'?1.05:1);
@@ -2489,6 +2591,8 @@ const game = {
 
   aliveEnemies(){ return this.enemies.filter(e=>e.alive); },
   aliveAllies(){ return this.allies.filter(a=>a.alive); },
+  // 敵の攻撃対象になり得る味方（HPを持たない姫は狙われない）
+  targetableAllies(){ return this.allies.filter(a=>a.alive && !a.noVitals); },
 
   // ===== ターン開始：味方のコマンドを順に入力 =====
   startTurn(){
@@ -2499,6 +2603,20 @@ const game = {
       if(this.provokeTurns<=0 && this.provokeTarget){
         this.provokeTarget._defBonus=Math.max(0,(this.provokeTarget._defBonus||0)-30);
         this.provokeTarget=null;
+      }
+    }
+    // 「あい」モード（あいのうた）の持続
+    if(this.loveTurns>0){
+      this.loveTurns--;
+      if(this.loveTurns<=0){
+        const hero=this.allies.find(a=>a.isHero);
+        if(hero && hero._loveTurns){
+          if(hero._loveAtk){ hero.atk-=hero._loveAtk; hero._loveAtk=0; }
+          if(hero._loveDef){ hero.def-=hero._loveDef; hero._loveDef=0; }
+          if(hero._loveHpUp){ hero.maxHp-=hero._loveHpUp; if(hero.hp>hero.maxHp)hero.hp=hero.maxHp; hero._loveHpUp=0; }
+          hero._loveTurns=0; hero._loveStat=null;
+          this.renderParty();
+        }
       }
     }
     this.enemies.concat(this.allies).forEach(u=>u.done=false);
@@ -2539,6 +2657,15 @@ const game = {
   closeBattleSub(){ this.cmdCtx=''; document.getElementById('bSub').style.display='none'; },
   autoChoose(){
     const a=this.curActor;
+    // 姫(noVitals)は攻撃力0。あいのうた未使用なら歌い、使用済みなら防御（パス）
+    if(a.noVitals){
+      if(!a._singUsed){
+        this.actions.push({ actor:a, type:'skill', skill:'sing' });
+      } else {
+        this.actions.push({ actor:a, type:'defend' });
+      }
+      this.allyQueue.shift(); this.inputNextAlly(); return;
+    }
     const healSpell = (a.spells||[]).find(s=>SPELLS[s].type==='heal');
 
     if(this.autoCare){
@@ -2590,6 +2717,15 @@ const game = {
   },
   battleMenu(){ this.cmdCtx='battle';
     const who=this.curActor.name;
+    // 姫(noVitals)はあいのうたと防御のみ
+    if(this.curActor.noVitals){
+      this.cmdItems=[];
+      if(this.skillsFor(this.curActor).length) this.cmdItems.push({label:'とくぎ',act:()=>this.cmdSkillMenu()});
+      this.cmdItems.push({label:'ぼうぎょ',act:()=>{ this.actions.push({actor:this.curActor,type:'defend'}); this.allyQueue.shift(); this.inputNextAlly(); }});
+      this.cmdSel=0; this.showBattleUI('cmd'); this.renderCmd('bCmd');
+      document.getElementById('bMsgText').textContent='';
+      return;
+    }
     this.cmdItems=[
       {label:'たたかう',act:()=>this.cmdAttack()},
       {label:'じゅもん',act:()=>this.cmdSpellMenu()},
@@ -2607,6 +2743,7 @@ const game = {
     const out=[];
     if(u.key==='sage' && u.lv>=10) out.push('kachikochi');
     if(u.key==='warrior' && u.lv>=10) out.push('provoke');
+    if(u.key==='princess') out.push('sing');
     return out;
   },
   battleA(){ if(this.cmdCtx==='battle') this.confirmCmd(); },
@@ -2643,7 +2780,8 @@ const game = {
     const box=document.getElementById('bSub'); this.showBattleUI('sub');
     box.innerHTML=list.map(k=>{
       const s=SKILLS[k];
-      const used=(k==='provoke' && this.curActor._provokeUsed);
+      const usedFlag=(k==='provoke'&&this.curActor._provokeUsed)||(k==='sing'&&this.curActor._singUsed);
+      const used=!!(s.once && usedFlag);
       const lbl = used ? `${s.name}（つかえない）` : `${s.name}${s.mp?`(${s.mp})`:''}`;
       return `<div class="cmd-item" data-sk="${used?'':k}">${lbl}</div>`;
     }).join('')+`<div class="cmd-item" data-back="1">もどる</div>`;
@@ -2654,7 +2792,8 @@ const game = {
   },
   cmdSkillPick(k){
     const s=SKILLS[k], a=this.curActor;
-    if(s.once && a._provokeUsed){ this.message(['この せんとうでは もう つかえない。'],()=>this.cmdSkillMenu()); return; }
+    const usedFlag=(k==='provoke'&&a._provokeUsed)||(k==='sing'&&a._singUsed);
+    if(s.once && usedFlag){ this.message(['この せんとうでは もう つかえない。'],()=>this.cmdSkillMenu()); return; }
     if(s.mp && a.mp<s.mp){ this.message(['MPが たりない！'],()=>this.cmdSkillMenu()); return; }
     this.actions.push({ actor:a, type:'skill', skill:k });
     this.allyQueue.shift(); this.inputNextAlly();
@@ -2738,6 +2877,9 @@ const game = {
     if(act.type==='spell'){ this.doAllySpell(actor, act.spell, act.target); return; }
     if(act.type==='item'){ this.doAllyItem(actor, act.item); return; }
     if(act.type==='skill'){ this.doAllySkill(actor, act.skill); return; }
+    if(act.type==='defend'){
+      this.message([`${actor.name}は みを まもっている。`],()=>this.cont()); return;
+    }
     this.nextAction();
   },
   resolveSleep(actor){
@@ -2899,6 +3041,28 @@ const game = {
       ],()=>this.cont());
       return;
     }
+    if(k==='sing'){
+      actor._singUsed=true;                 // 1戦闘1回
+      const hero=this.allies.find(a=>a.isHero);
+      if(!hero){ this.nextAction(); return; }
+      // ゆうしゃの最大HP+100＆全回復、攻撃か防御ランダムで+100、4ターン「あい」モード
+      const buffAtk = Math.random()<0.5;
+      hero._loveTurns=4;
+      hero._loveStat = buffAtk?'atk':'def';
+      hero._loveHpUp=100; hero.maxHp+=100;
+      if(buffAtk){ hero._loveAtk=100; hero.atk+=100; } else { hero._loveDef=100; hero.def+=100; }
+      hero.hp=hero.maxHp;                    // 全回復
+      this.loveTurns=4;                       // ステータス表記用
+      audio.se('levelup'); this.fxHeal(); this.fxFuryOn&&this.fxFuryOn(); this.renderParty();
+      this.message([
+        `${actor.name}は 「あいのうた」を うたった！`,
+        'やさしい しらべが せんじょうに ひびきわたる──',
+        `ゆうしゃは 「あい」に めざめた！（4ターン）`,
+        `さいだいHPが 100 あがり、HPが ぜんかいふく！`,
+        buffAtk ? 'こうげきりょくが 100 あがった！' : 'ぼうぎょりょくが 100 あがった！'
+      ],()=>this.cont());
+      return;
+    }
     this.nextAction();
   },
   doEnemyAction(enemy){
@@ -2911,9 +3075,9 @@ const game = {
     }
     let target;
     if(this.provokeTurns>0 && this.provokeTarget && this.provokeTarget.alive){
-      target = (Math.random()<0.85) ? this.provokeTarget : this.pick(this.aliveAllies());
+      target = (Math.random()<0.85) ? this.provokeTarget : this.pick(this.targetableAllies());
     } else {
-      target=this.pick(this.aliveAllies());
+      target=this.pick(this.targetableAllies());
     }
     if(!target){ this.nextAction(); return; }
     // ジェネラルの「かばう」：瀕死の仲間を高確率でかばい、被ダメ半分
@@ -3251,6 +3415,13 @@ const game = {
       const active=(this.curActor&&this.curActor===a&&this.cmdCtx==='battle');
       const d=document.createElement('div');
       d.className='p-unit'+(active?' active':'')+(a.alive?'':' downed');
+      // 姫(noVitals)はHP/MPを持たない＝名前枠だけ表示（別レイアウト）
+      if(a.noVitals){
+        d.className+=' p-novital';
+        d.innerHTML=`<div class="pn">${a.name} <span class="pn-lv">♪</span></div>
+          <div class="pn-role">うたいて</div>`;
+        wrap.appendChild(d); return;
+      }
       const mpLine=a.maxMp>0?`<div>MP ${a.mp}/${a.maxMp}</div><div class="hbar mp"><i style="width:${a.mp/a.maxMp*100}%"></i></div>`:'';
       const badge=a.status&&a.alive?` <span style="color:#c5f">${stIcon[a.status]||''}</span>`:'';
       // バーサーカー：HP75%以下でゲージが変色し、30%以下(fury発動圏)でさらに強調
@@ -3261,7 +3432,10 @@ const game = {
         if(ratio<=0.30){ hpCls+=' fury-on'; furyTag=' <span class="fury-badge">🔥ぶじ</span>'; }
         else if(ratio<=0.75){ hpCls+=' fury-warn'; }
       }
-      d.innerHTML=`<div class="pn">${a.name} <span class="pn-lv">Lv${a.lv}</span>${badge}${furyTag}</div>
+      // 「あい」モード中の勇者にラベル
+      let loveTag='';
+      if(a.isHero && a._loveTurns>0){ loveTag=` <span class="love-badge">💗あい(${this.loveTurns})</span>`; }
+      d.innerHTML=`<div class="pn">${a.name} <span class="pn-lv">Lv${a.lv}</span>${badge}${furyTag}${loveTag}</div>
         <div>HP ${Math.max(0,a.hp)}/${a.maxHp}</div>
         <div class="${hpCls}"><i style="width:${Math.max(0,ratio*100)}%"></i></div>${mpLine}`;
       wrap.appendChild(d);
@@ -3414,6 +3588,14 @@ const game = {
       dot('#6a4a32',[[2,5,1,2],[5,5,1,2]]);
       dot('#5a4030',[[1,1,2,1],[2,0,4,1],[5,1,2,1],[1,2,6,2]]); // 枯れ枝
       dot('#3a2818',[[2,2],[5,2],[3,3],[4,1]]);
+    }
+    else if(ch==='S'){ // 海の上の船
+      ctx.fillStyle='#2f6fc4'; ctx.fillRect(px,py,t,t);          // 水
+      dot('#5a92e0',[[1,1],[6,2],[2,6],[7,5]]);                  // 波
+      dot('#6b4a2a',[[1,5,6,2]]);                                 // 船体
+      dot('#4a3018',[[1,6,6,1]]);
+      dot('#cfd6e0',[[4,1,1,4]]);                                 // マスト
+      dot('#eef2f8',[[2,2,2,3],[5,2,2,3]]);                       // 帆
     }
   },
   dotBuilding(ctx,px,py,t,kind){
