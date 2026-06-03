@@ -92,6 +92,7 @@
   .hbar{height:7px;border:1px solid #fff;background:#000;border-radius:2px;overflow:hidden;}
   .hbar i{display:block;height:100%;transition:width .3s;}
   .hbar.hp i{background:linear-gradient(90deg,#7a201a,var(--hp));}
+  .hbar.lovebar i{display:block;height:100%;background:linear-gradient(90deg,#ff5fa2,#ffc0e0);}
   /* バーサーカー：HP75%以下で橙、30%以下(fury発動圏)で燃える赤＋点滅 */
   .hbar.hp.fury-warn i{background:linear-gradient(90deg,#7a4a10,#ffae3a);}
   .hbar.hp.fury-on i{background:linear-gradient(90deg,#7a1010,#ff5a2a);animation:furyPulse .6s steps(1) infinite;}
@@ -210,6 +211,13 @@
   .love-badge{color:#ff8ad0;font-size:10px;font-weight:bold;animation:bl 1s steps(1) infinite;}
   .p-unit .hbar{margin-top:2px;}
   #bAuto{position:absolute;right:8px;top:8px;z-index:7;font-size:12px;padding:5px 10px;border:2px solid #888;border-radius:5px;background:#000;cursor:pointer;letter-spacing:.08em;}
+  #bLove{position:absolute;right:8px;top:42px;z-index:7;display:flex;align-items:center;gap:4px;
+    background:rgba(0,0,0,.55);padding:3px 6px;border-radius:5px;}
+  #bLove .lv-label{font-size:10px;color:#ff9ad0;letter-spacing:.05em;}
+  #bLove .lv-bar{width:70px;height:7px;border:1px solid #d86db0;border-radius:4px;background:#2a1020;overflow:hidden;}
+  #bLove .lv-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff5fa2,#ffc0e0);transition:width .25s;}
+  #bLove.full .lv-bar i{animation:lovePulse .5s steps(1) infinite;}
+  @keyframes lovePulse{50%{filter:brightness(1.7);}}
   #bAuto.on{border-color:var(--gold);color:var(--gold);box-shadow:0 0 6px rgba(245,215,94,.5);}
   #bMsg{position:absolute;left:8px;right:8px;bottom:118px;z-index:5;min-height:60px;}
   #bCmd{position:absolute;left:8px;bottom:8px;width:150px;z-index:5;}
@@ -293,6 +301,7 @@
     </div>
     <div id="bParty"></div>
     <div id="bAuto">AUTO ▢</div>
+    <div id="bLove"><span class="lv-label">💗あい</span><div class="lv-bar"><i id="bLoveFill"></i></div></div>
     <div id="bMsg" class="win"><div id="bMsgText"></div></div>
     <div id="bCmd" class="win"></div>
     <div id="bSub" class="win"></div>
@@ -836,12 +845,13 @@ function freshPlayer(){
             departed:false, princessJoined:false, metKud:false, gotShip:false },
     quests:{},                        // サブクエスト進捗 {questId:{state,count}}
     seen:[], chests:[],
+    loveGauge:0,                      // あいゲージ(0-100)。満タンで戦闘中あいのうた自動発動
   };
 }
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='1.4';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='1.5';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1408,6 +1418,8 @@ const game = {
     if(t==='D' && !this.doorIsOpen()){ this.draw(); return; }
     if(t!=='D' && SOLID.has(t)){ this.draw(); return; }
     p.x=nx; p.y=ny; this.frame^=1; this.draw();
+    // 歩くたび あいゲージが少しずつ たまる（ランダム）
+    this.addLove(this.randi(0,2));
     // 塔の宝箱→踏んだら開ける（素通りもできる。取得後はただの床）
     if(p.map==='tower' && t==='C' && !(this.tower.opened&&this.tower.opened[nx+','+ny])){
       this.openTowerChest(nx,ny); return;
@@ -2332,10 +2344,31 @@ const game = {
       {label:'じゅもん',act:()=>this.fieldSpellMenu()},
       {label:'どうぐ',act:()=>this.fieldItemMenu()},
       {label:'つよさ',act:()=>this.showStatus()},
+    ];
+    if(this.p.party.includes('princess')){
+      this.cmdItems.push({label:'フィーナと はなす',act:()=>this.fiinaChat()});
+    }
+    this.cmdItems.push(
       {label:'きろくする',act:()=>this.saveMenu()},
       {label:'タイトルに もどる',act:()=>this.titleMenu()},
       {label:'とじる',act:()=>this.closeCmd()},
-    ]; this.cmdSel=0; this.renderCmd('cmdBox');
+    ); this.cmdSel=0; this.renderCmd('cmdBox');
+  },
+  // フィーナとの会話（あいゲージが よく たまる）
+  fiinaChat(){
+    this.closeCmd();
+    const lines=[
+      'フィーナ「ゆうしゃ さま、すこし やすみませんか？」',
+      'フィーナ「あなたと いると、こころが あたたかく なります。」',
+      'フィーナ「どんな うみの むこうにも、ついて いきますわ。」',
+      'フィーナ「わたくしの うた、せんじょうで きこえて いますか？」',
+      'フィーナ「あなたの となりが、わたくしの いばしょです。」',
+      'フィーナ「つかれたら、いつでも こえを かけて くださいね。」',
+      'フィーナ「ふたりなら、どんな やみも こわく ありません。」',
+    ];
+    const line=lines[this.randi(0,lines.length-1)];
+    this.addLove(this.randi(8,16));   // 会話は比較的よくたまる
+    this.message([line, '（ふたりの きずなが ふかまった…）']);
   },
   // タイトルへ戻る（セーブ確認つき）
   titleMenu(){
@@ -2577,7 +2610,7 @@ const game = {
     document.getElementById('battle').dataset.bg=bgType;
     const ab=document.getElementById('bAuto');
     this.refreshAutoBtn();
-    this.renderEnemies(); this.renderParty();
+    this.renderEnemies(); this.renderParty(); this.renderLoveGauge();
     const names=this.enemies.length===1?this.enemies[0].name
       : this.enemyCountLabel();
     this.message([`${names}が あらわれた！`],()=>this.startTurn());
@@ -2621,11 +2654,18 @@ const game = {
     }
     this.enemies.concat(this.allies).forEach(u=>u.done=false);
     this.renderEnemies(); // 倒した敵の表示を整理
-    this.allyQueue = this.aliveAllies().slice(); // コマンド入力待ちの味方
+    // コマンド入力待ちの味方（姫=noVitalsは手番を持たない。あいゲージ満タンで自動発動する）
+    this.allyQueue = this.aliveAllies().filter(a=>!a.noVitals);
+    // ターン開始時、あいゲージが満タンなら自動であいのうた発動
+    this.tryAutoLoveSong();
     this.actions = []; // {actor, type, ...}
     this.inputNextAlly();
   },
   inputNextAlly(){
+    // あいのうた自動発動（このターンの最初に一度だけ）
+    if(this._pendingLoveSong){ this._pendingLoveSong=false;
+      this.applyLoveSong(()=>this.inputNextAlly()); return;
+    }
     if(this.allyQueue.length===0){ this.resolveTurn(); return; }
     this.curActor = this.allyQueue[0];
     // 眠っている味方は行動できない（起きる判定はターン解決時）
@@ -2655,17 +2695,42 @@ const game = {
     b.textContent = this.autoMode===2 ? 'いのち ▣' : (this.autoMode===1 ? 'AUTO ▣' : 'AUTO ▢');
   },
   closeBattleSub(){ this.cmdCtx=''; document.getElementById('bSub').style.display='none'; },
+  // あいゲージを加算（姫が仲間にいるときだけ）。満タン100で頭打ち
+  addLove(n){
+    if(!this.p || !this.p.party || !this.p.party.includes('princess')) return;
+    const before=this.p.loveGauge||0;
+    this.p.loveGauge=Math.min(100, before + n);
+    if(this.mode==='field') this.updateStrip();   // フィールド表示を更新
+    if(this.mode==='battle') this.renderLoveGauge();
+  },
+  // 戦闘ターン開始時：ゲージ満タンなら自動であいのうた発動
+  tryAutoLoveSong(){
+    if(!this.p.party.includes('princess')) return;
+    if((this.p.loveGauge||0) < 100) return;
+    if(this.loveTurns>0) return;                   // 効果中は重ねない
+    this.p.loveGauge=0;                            // 消費
+    this._pendingLoveSong=true;                    // このターンの先頭で歌う
+  },
+  // あいのうたの効果を勇者に適用（共通）
+  applyLoveSong(done){
+    const hero=this.allies.find(a=>a.isHero);
+    if(!hero){ if(done)done(); return; }
+    const buffAtk = Math.random()<0.5;
+    hero._loveTurns=4; hero._loveStat=buffAtk?'atk':'def';
+    hero._loveHpUp=100; hero.maxHp+=100;
+    if(buffAtk){ hero._loveAtk=100; hero.atk+=100; } else { hero._loveDef=100; hero.def+=100; }
+    hero.hp=hero.maxHp; this.loveTurns=4;
+    audio.se('levelup'); this.fxHeal(); this.fxFuryOn&&this.fxFuryOn(); this.renderParty(); this.renderLoveGauge();
+    this.message([
+      'フィーナは 「あいのうた」を うたいはじめた！',
+      'やさしい しらべが せんじょうに ひびきわたる──',
+      'ゆうしゃは 「あい」に めざめた！（4ターン）',
+      'さいだいHPが 100 あがり、HPが ぜんかいふく！',
+      buffAtk ? 'こうげきりょくが 100 あがった！' : 'ぼうぎょりょくが 100 あがった！'
+    ],()=>{ if(done)done(); });
+  },
   autoChoose(){
     const a=this.curActor;
-    // 姫(noVitals)は攻撃力0。あいのうた未使用なら歌い、使用済みなら防御（パス）
-    if(a.noVitals){
-      if(!a._singUsed){
-        this.actions.push({ actor:a, type:'skill', skill:'sing' });
-      } else {
-        this.actions.push({ actor:a, type:'defend' });
-      }
-      this.allyQueue.shift(); this.inputNextAlly(); return;
-    }
     const healSpell = (a.spells||[]).find(s=>SPELLS[s].type==='heal');
 
     if(this.autoCare){
@@ -3097,12 +3162,14 @@ const game = {
       const sp=SPELLS[enemy.spell] || {name:'やみのほのお',base:enemy.spell==='darkflame'?40:18};
       let dmg=Math.max(1,Math.round(((sp.base||20)+this.randi(-3,3)-Math.floor(tdef/3))*cut));
       target.hp-=dmg; if(target.hp<=0) target.alive=false;
+      this.addLove(this.randi(2,6));   // 攻撃を うけると あいゲージが たまる
       audio.se('flame'); this.shakeStage(); this.renderParty();
       this.message([coverMsg+`${enemy.name}は ${sp.name||'やみのほのお'}を となえた！\n${target.name}に ${dmg}の ダメージ！`+(target.alive?'':`\n${target.name}は たおれた！`)],()=>this.cont());
       return;
     }
     let dmg=Math.max(1,Math.round((enemy.atk-Math.floor(tdef/2)+this.randi(-2,2))*cut));
     target.hp-=dmg; if(target.hp<=0) target.alive=false;
+    this.addLove(this.randi(2,6));   // 攻撃を うけると あいゲージが たまる
     audio.se('damage'); this.shakeStage(); this.renderParty();
     let extra='';
     // 状態異常の付与（対象が生存・無状態のときのみ）
@@ -3161,6 +3228,7 @@ const game = {
       this.p.flags.won=true; this.ending(); return;
     }
     audio.se('win'); this.syncAlliesBack();
+    this.addLove(this.randi(15,30));   // 戦闘を終えるたび あいゲージが たまる
     const totalXp=this.enemies.reduce((s,e)=>s+e.xp,0);
     const totalGold=this.enemies.reduce((s,e)=>s+e.gold,0);
     this.p.gold+=totalGold;
@@ -3407,6 +3475,16 @@ const game = {
         <div class="b-uhp"><div class="bar"><i style="width:${Math.max(0,e.hp/e.maxHp*100)}%"></i></div></div>`;
       wrap.appendChild(d);
     });
+  },
+  // あいゲージの戦闘表示を更新
+  renderLoveGauge(){
+    const box=document.getElementById('bLove'); if(!box) return;
+    const has=this.p&&this.p.party&&this.p.party.includes('princess');
+    box.style.display = has ? 'flex' : 'none';
+    if(!has) return;
+    const g=Math.max(0,Math.min(100,this.p.loveGauge||0));
+    const fill=document.getElementById('bLoveFill'); if(fill) fill.style.width=g+'%';
+    box.classList.toggle('full', g>=100);
   },
   renderParty(){
     const wrap=document.getElementById('bParty'); wrap.innerHTML='';
@@ -3670,9 +3748,16 @@ const game = {
     document.getElementById('sGold').textContent=p.gold;
     const wrap=document.getElementById('partyStrip'); if(!wrap) return;
     const units=[{name:'ゆうしゃ',lv:p.lv,hp:p.hp,maxHp:p.maxHp,mp:p.mp,maxMp:p.maxMp}];
-    p.party.forEach(key=>{ const st=p.allyState[key];
-      units.push({name:ALLIES[key].name,lv:st.lv,hp:st.hp,maxHp:st.maxHp,mp:st.mp,maxMp:st.maxMp}); });
+    p.party.forEach(key=>{ const st=p.allyState[key]; const a=ALLIES[key];
+      units.push({name:a.name,lv:st.lv,hp:st.hp,maxHp:st.maxHp,mp:st.mp,maxMp:st.maxMp,
+                  noVitals:!!(a.noVitals||st.noVitals)}); });
     wrap.innerHTML=units.map(u=>{
+      if(u.noVitals){
+        const g=Math.max(0,Math.min(100,p.loveGauge||0));
+        return `<div class="ps-unit ps-love"><div class="ps-name">${u.name} <span class="ps-lv">♪</span></div>`
+          +`<div><span class="ps-hp" style="background:#c45a9a">あい</span> ${g}%</div>`
+          +`<div class="hbar lovebar"><i style="width:${g}%"></i></div></div>`;
+      }
       const hpPct=Math.max(0,u.hp)/u.maxHp*100, mpPct=u.maxMp?u.mp/u.maxMp*100:0;
       const mpLine=u.maxMp>0?`<div><span class="ps-mp">MP</span> ${u.mp}/${u.maxMp}</div><div class="hbar mp"><i style="width:${mpPct}%"></i></div>`:'';
       return `<div class="ps-unit${u.hp<=0?' downed':''}"><div class="ps-name">${u.name} <span class="ps-lv">Lv${u.lv}</span></div><div><span class="ps-hp">HP</span> ${Math.max(0,u.hp)}/${u.maxHp}</div><div class="hbar hp"><i style="width:${hpPct}%"></i></div>${mpLine}</div>`;
