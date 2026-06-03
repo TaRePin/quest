@@ -1,0 +1,3498 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="format-detection" content="telephone=no">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<title>アルディア・ファンタジー</title>
+<style>
+  :root{ --ink:#fff; --hp:#e85d5d; --mp:#5d9ce8; --gold:#f5d76e; }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{font-family:'DotGothic16',monospace;background:#000;color:var(--ink);
+       overflow:hidden;user-select:none;-webkit-user-select:none;}
+  #app{max-width:440px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;
+       background:#000;position:relative;}
+
+  #title{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;
+         align-items:center;justify-content:center;text-align:center;padding:24px;
+         background:linear-gradient(180deg,#0c1838 0%,#13234d 60%,#0a1430 100%);}
+  .t-logo{position:relative;margin-bottom:6px;}
+  .t-dragon{position:absolute;left:50%;top:-26px;width:200px;height:150px;
+            transform:translateX(-58%);opacity:.92;
+            filter:drop-shadow(0 3px 4px rgba(0,0,0,.6));pointer-events:none;}
+  .t-jp{font-size:13px;color:#9bd;letter-spacing:.32em;margin:6px 0 0;}
+  .t-speed{margin-top:26px;}
+  .t-speed-label{font-size:12px;color:#cdb78a;letter-spacing:.22em;margin-bottom:6px;}
+  .t-speed-row{display:flex;gap:14px;justify-content:center;font-size:14px;color:#e8e2cf;letter-spacing:.08em;}
+  .t-spd{position:relative;padding-left:14px;cursor:pointer;}
+  .t-copy{position:absolute;bottom:22px;left:0;right:0;font-size:13px;color:#b9a7ff;letter-spacing:.12em;}
+  .t-ver{color:#7e8bb5;font-size:11px;}
+  .t-update{margin-top:22px;display:flex;flex-direction:column;align-items:center;gap:6px;}
+  .t-upbtn{font-size:12px;color:#9fc0ff;letter-spacing:.12em;border:1px solid #3a4a72;
+    border-radius:6px;padding:5px 12px;cursor:pointer;background:rgba(20,32,64,.5);}
+  .t-upbtn:active{background:#2a4;color:#fff;}
+  .t-upmsg{font-size:11px;color:#cdb78a;min-height:14px;letter-spacing:.06em;}
+  .t-bar{width:200px;height:8px;border:1px solid #5a6a9a;border-radius:5px;background:#0a1228;
+    overflow:hidden;opacity:0;transition:opacity .2s;}
+  .t-bar.show{opacity:1;}
+  .t-bar i{display:block;height:100%;width:0;
+    background:linear-gradient(90deg,#3a7,#6cf);border-radius:5px;}
+  #devStartBtn{position:absolute;right:8px;bottom:8px;width:26px;height:26px;border-radius:50%;
+    cursor:pointer;opacity:.10;background:radial-gradient(circle,#6cf,#357);z-index:31;
+    transition:opacity .2s;}
+  #devStartBtn:active{opacity:.6;}
+  #devStartBtn2{position:absolute;left:8px;bottom:8px;width:26px;height:26px;border-radius:50%;
+    cursor:pointer;opacity:.10;background:radial-gradient(circle,#fc6,#a63);z-index:31;
+    transition:opacity .2s;}
+  #devStartBtn2:active{opacity:.6;}
+  #devStartBtn.holding,#devStartBtn2.holding{animation:devHold 5s linear forwards;}
+  @keyframes devHold{from{opacity:.1;box-shadow:0 0 0 rgba(255,255,255,0);}
+    to{opacity:.95;box-shadow:0 0 16px rgba(255,255,255,.9);}}
+  #credits{display:none;position:absolute;inset:0;z-index:50;background:#000;overflow:hidden;}
+  #credits.show{display:block;}
+  #creditsInner{position:absolute;left:0;right:0;top:100%;text-align:center;color:#eaf2ff;
+    font-family:Georgia,'Times New Roman',serif;line-height:1.9;padding:0 18px;}
+  #creditsInner.run{animation:creditScroll 48s linear forwards;}
+  #creditsInner h1{font-size:26px;letter-spacing:3px;margin:0 0 6px;color:#ffe7a0;}
+  #creditsInner h2{font-size:13px;letter-spacing:6px;margin:0 0 40px;color:#9fc0ff;font-weight:400;}
+  #creditsInner .role{font-size:11px;letter-spacing:3px;color:#7fa0d0;margin-top:30px;}
+  #creditsInner .name{font-size:17px;letter-spacing:1px;margin-top:3px;}
+  #creditsInner .fin{font-size:30px;letter-spacing:8px;color:#ffe7a0;margin:60px 0 120px;}
+  .theend{font-size:46px;letter-spacing:14px;color:#ffe7a0;text-shadow:0 0 24px rgba(255,231,160,.7);
+    animation:theEndIn 2.4s ease-out forwards;}
+  @keyframes theEndIn{0%{opacity:0;transform:scale(.4);letter-spacing:2px;}
+    60%{opacity:1;}100%{opacity:1;transform:scale(1);letter-spacing:14px;}}
+  .endhint{margin-top:40px;font-size:13px;letter-spacing:3px;color:#9fc0ff;
+    animation:bl 1.2s steps(1) infinite;font-family:inherit;}
+  @keyframes creditScroll{from{top:100%;}to{top:-380%;}}
+  @keyframes bl{50%{opacity:0;}}
+
+  #stage{flex:1;display:flex;align-items:center;justify-content:center;background:#000;position:relative;overflow:hidden;}
+  canvas{display:block;background:#000;image-rendering:pixelated;}
+
+  #strip{display:none;padding:6px 10px;font-size:12px;border-bottom:2px solid #fff;
+         background:#000;flex-direction:column;gap:3px;}
+  #strip.show{display:flex;}
+  .strip-top{display:flex;align-items:center;justify-content:space-between;}
+  .strip-bars{display:flex;gap:6px;}
+  .s-cell{white-space:nowrap;} .s-cell b{color:var(--gold);}
+  .hp-n{color:var(--hp);} .mp-n{color:var(--mp);}
+  .hbar{height:7px;border:1px solid #fff;background:#000;border-radius:2px;overflow:hidden;}
+  .hbar i{display:block;height:100%;transition:width .3s;}
+  .hbar.hp i{background:linear-gradient(90deg,#7a201a,var(--hp));}
+  /* バーサーカー：HP75%以下で橙、30%以下(fury発動圏)で燃える赤＋点滅 */
+  .hbar.hp.fury-warn i{background:linear-gradient(90deg,#7a4a10,#ffae3a);}
+  .hbar.hp.fury-on i{background:linear-gradient(90deg,#7a1010,#ff5a2a);animation:furyPulse .6s steps(1) infinite;}
+  @keyframes furyPulse{0%{filter:brightness(1);}50%{filter:brightness(1.7);}100%{filter:brightness(1);}}
+  .fury-badge{color:#ff7a2a;font-size:10px;font-weight:bold;animation:furyPulse .6s steps(1) infinite;}
+  .hbar.mp i{background:linear-gradient(90deg,#26406e,var(--mp));}
+  #bHero{position:absolute;left:8px;top:10px;z-index:6;font-size:12px;line-height:1.55;padding:6px 10px;min-width:128px;}
+  #bHero .lbl{color:var(--gold);font-size:11px;letter-spacing:.12em;}
+
+  .win{border:3px solid #fff;border-radius:8px;background:#000;padding:11px 14px;
+       line-height:1.85;font-size:15px;box-shadow:0 0 0 3px #000,inset 0 0 0 2px #000;
+       outline:2px solid #000;outline-offset:1px;}
+  .t-name{position:relative;z-index:1;font-size:46px;font-weight:bold;letter-spacing:.04em;line-height:1.05;
+          color:#cfd6e0;
+          text-shadow:1px 1px 0 #6b7280,2px 2px 0 #565d68,3px 3px 0 #444a54,
+                      4px 4px 0 #353a42,5px 5px 0 #262a30,6px 7px 6px rgba(0,0,0,.7);
+          transform:perspective(500px) rotateX(12deg);}
+  .t-menu{margin-top:30px;display:flex;flex-direction:column;gap:8px;}
+  .t-item{position:relative;font-size:22px;letter-spacing:.12em;color:#eee;padding-left:26px;cursor:pointer;}
+  .t-cur{position:absolute;left:4px;opacity:0;color:#ffe06a;}
+  .t-item.sel .t-cur,.t-spd.sel .t-cur{opacity:1;animation:bl 1s steps(1) infinite;}
+  .t-spd.sel{color:#ffe06a;}
+  /* 敵の攻撃モーション（前に飛び出す）参考: web帳 */
+  .b-enemy.atk{animation:eatk .5s;}
+  @keyframes eatk{0%,100%{transform:translateY(0) scale(1);}45%{transform:translateY(40px) scale(1.35);}}
+  @keyframes bhit{0%,100%{transform:translate(0,0);opacity:1;}25%{transform:translate(-10px,0);opacity:.35;}75%{transform:translate(8px,0);}}
+  @keyframes bdead{to{opacity:0;transform:scale(.4) translateY(20px);filter:blur(4px);}}
+  #msgBox{position:absolute;left:8px;right:8px;bottom:8px;z-index:20;display:none;min-height:84px;}
+  #msgBox.show{display:block;}
+  #msgText{white-space:pre-wrap;}
+  .msg-cursor{color:#fff;animation:bl 1s steps(1) infinite;}
+  #cmdBox{position:absolute;right:8px;bottom:100px;z-index:21;display:none;min-width:128px;}
+  #cmdBox.show{display:block;}
+  .cmd-item{padding:3px 8px 3px 20px;position:relative;cursor:pointer;font-size:15px;}
+  .cmd-item.sel::before{content:"▶";position:absolute;left:4px;}
+  .cmd-item:active{color:var(--gold);}
+
+  #pad{display:none;padding:10px 16px 18px;align-items:center;justify-content:space-between;
+       background:#000;border-top:2px solid #333;}
+  #pad.show{display:flex;}
+  .dpad{display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);gap:3px;
+        touch-action:none;user-select:none;-webkit-user-select:none;}
+  .dbtn{background:#1a1a1a;border:2px solid #555;border-radius:6px;color:#ccc;font-size:20px;
+        display:flex;align-items:center;justify-content:center;cursor:pointer;
+        pointer-events:none;transition:background .05s,border-color .05s;}
+  .dbtn:active,.dbtn.pressed{background:#2a4;color:#fff;border-color:#5d8;}
+  .dbtn.empty{visibility:hidden;}
+  .act-col{display:flex;flex-direction:column;gap:10px;}
+  .abtn{width:60px;height:60px;border-radius:50%;border:3px solid #888;background:#1a1a1a;color:#fff;
+        font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .abtn:active{background:#2a4;}
+  .abtn.menu{width:48px;height:48px;font-size:11px;border-color:#666;align-self:center;}
+
+  #battle{position:absolute;inset:0;z-index:25;display:none;flex-direction:column;
+          background:linear-gradient(180deg,#0a0e1c 0%,#141a30 55%,#0a0e1c 100%);}
+  #battle.show{display:flex;}
+  /* 戦闘背景テーマ */
+  #battle[data-bg="field"]{background:linear-gradient(180deg,#1a2a52 0%,#2a4a82 38%,#3a6a3e 38%,#1e3a22 100%);}
+  #battle[data-bg="cave"]{background:linear-gradient(180deg,#0a0808 0%,#1a1410 45%,#241a14 45%,#0f0a08 100%);}
+  #battle[data-bg="castle"]{background:linear-gradient(180deg,#12101e 0%,#241c38 45%,#2a2230 45%,#14101a 100%);}
+  #battle[data-bg="tower"]{background:linear-gradient(180deg,#160a26 0%,#2a1648 42%,#3a2058 42%,#190c2c 100%);}
+  #battle[data-bg="elf"]{background:linear-gradient(180deg,#0d1b3a 0%,#12305a 36%,#1d4a2e 36%,#0f2c18 100%);}
+  #battle[data-bg="elf"] .b-far{
+    background:radial-gradient(80px 54px at 18% 100%,#16331f 0 99%,transparent),
+              radial-gradient(100px 64px at 50% 100%,#1c3e26 0 99%,transparent),
+              radial-gradient(86px 56px at 82% 100%,#16331f 0 99%,transparent);opacity:.75;}
+  #battle[data-bg="elf"]::after{content:"";position:absolute;top:9%;right:16%;width:40px;height:40px;border-radius:50%;
+    background:radial-gradient(circle,#f4f9ff,#cfe2ff);box-shadow:0 0 26px rgba(200,225,255,.55);z-index:0;}
+  .b-stage{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+  /* 遠景の山・星・岩などをレイヤーで */
+  .b-far{position:absolute;left:0;right:0;top:24%;height:18%;z-index:1;opacity:.5;pointer-events:none;}
+  #battle[data-bg="field"] .b-far{
+    background:radial-gradient(60px 40px at 20% 100%,#1e3a22 0 99%,transparent),
+              radial-gradient(80px 52px at 50% 100%,#234227 0 99%,transparent),
+              radial-gradient(70px 46px at 80% 100%,#1e3a22 0 99%,transparent);}
+  #battle[data-bg="field"]::after{content:"";position:absolute;top:8%;right:14%;width:46px;height:46px;border-radius:50%;
+    background:radial-gradient(circle,#fff7d0,#ffe28a);box-shadow:0 0 30px rgba(255,226,138,.6);z-index:0;}
+  #battle[data-bg="cave"] .b-far{
+    background:radial-gradient(40px 60px at 15% 0,#2a201a 0 99%,transparent),
+              radial-gradient(34px 70px at 45% 0,#241a14 0 99%,transparent),
+              radial-gradient(40px 54px at 78% 0,#2a201a 0 99%,transparent);opacity:.7;}
+  #battle[data-bg="castle"] .b-far{
+    background:linear-gradient(90deg,transparent 8%,#2e2640 8% 14%,transparent 14% 24%,#2e2640 24% 30%,transparent 30% 70%,#2e2640 70% 76%,transparent 76% 86%,#2e2640 86% 92%,transparent 92%);
+    top:20%;height:22%;opacity:.6;}
+  #battle[data-bg="tower"] .b-far{
+    background:linear-gradient(90deg,transparent 10%,#4a2e6e 10% 16%,transparent 16% 42%,#4a2e6e 42% 48%,transparent 48% 58%,#4a2e6e 58% 64%,transparent 64% 90%);
+    top:18%;height:24%;opacity:.55;}
+  #battle[data-bg="tower"]::after{content:"";position:absolute;top:10%;left:18%;width:5px;height:5px;border-radius:50%;
+    background:#e6d0ff;box-shadow:60px 14px 0 #cdaaff,120px -4px 0 #fff,180px 24px 0 #d8b8ff,240px 6px 0 #fff,300px 18px 0 #cdaaff;
+    opacity:.8;z-index:0;}
+  .b-grid{position:absolute;left:0;right:0;bottom:0;height:55%;z-index:1;
+    background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);
+    background-size:30px 22px;transform:perspective(280px) rotateX(60deg);transform-origin:bottom;opacity:.5;}
+  #bEnemies{position:relative;z-index:2;display:flex;align-items:flex-end;justify-content:center;gap:14px;flex-wrap:wrap;padding-top:20px;}
+  .b-unit{display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:transform .1s;}
+  .b-unit.targetable{outline:2px dashed rgba(255,211,77,.7);outline-offset:4px;border-radius:8px;}
+  .b-unit .b-art{line-height:1;filter:drop-shadow(0 8px 14px rgba(0,0,0,.7));
+    display:flex;align-items:flex-end;justify-content:center;}
+  .b-unit.hit .b-art{animation:bhit .3s;}
+  .b-unit.atk .b-art{animation:eatk .5s;}
+  .b-unit.dead{animation:bdead .6s forwards;}
+  .b-unit .b-uname{font-size:11px;margin-top:6px;letter-spacing:.05em;color:#ffe;
+    position:relative;z-index:3;background:rgba(0,0,0,.55);padding:1px 7px;border-radius:7px;
+    white-space:nowrap;text-shadow:0 1px 2px #000;}
+  .b-unit .b-uhp{width:70px;margin-top:3px;position:relative;z-index:3;}
+  .b-unit .b-uhp .bar{height:6px;border:1px solid #fff;background:#000;border-radius:2px;overflow:hidden;}
+  .b-unit .b-uhp .bar i{display:block;height:100%;background:linear-gradient(90deg,#7a201a,var(--hp));transition:width .3s;}
+  #bParty{position:absolute;left:8px;top:8px;z-index:6;display:flex;flex-direction:column;gap:4px;}
+  .p-unit{font-size:11px;line-height:1.3;padding:4px 8px;border:2px solid #fff;border-radius:5px;background:#000;min-width:118px;}
+  .p-unit.active{border-color:var(--gold);box-shadow:0 0 6px rgba(245,215,94,.6);}
+  .p-unit.downed{opacity:.45;}
+  .p-unit .pn{color:var(--gold);}
+  .p-unit .pn-lv{color:#bfe3ff;font-size:10px;font-weight:bold;}
+  .p-unit .hbar{margin-top:2px;}
+  #bAuto{position:absolute;right:8px;top:8px;z-index:7;font-size:12px;padding:5px 10px;border:2px solid #888;border-radius:5px;background:#000;cursor:pointer;letter-spacing:.08em;}
+  #bAuto.on{border-color:var(--gold);color:var(--gold);box-shadow:0 0 6px rgba(245,215,94,.5);}
+  #bMsg{position:absolute;left:8px;right:8px;bottom:118px;z-index:5;min-height:60px;}
+  #bCmd{position:absolute;left:8px;bottom:8px;width:150px;z-index:5;}
+  #bSub{position:absolute;right:8px;bottom:8px;left:166px;z-index:5;max-height:200px;overflow-y:auto;}
+
+  /* battle FX */
+  .fx{position:absolute;z-index:4;pointer-events:none;}
+  .fx-dmg{font-size:34px;font-weight:bold;color:#ffd34d;text-shadow:2px 2px 0 #000;animation:dmgrise 1s ease-out forwards;}
+  .fx-dmg.crit{color:#ff5a4d;font-size:44px;}
+  .fx-dmg.heal{color:#7ee87e;}
+  .fx-dmg.miss{color:#cfd6e0;font-size:26px;}
+  @keyframes dmgrise{0%{opacity:1;transform:translate(-50%,0) scale(.6);}30%{transform:translate(-50%,-10px) scale(1.1);}100%{opacity:0;transform:translate(-50%,-60px) scale(1);}}
+  .fx-flame{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle,#ffe08a,#ff7a1a 60%,#c0300f);animation:flame .55s ease-out forwards;}
+  @keyframes flame{0%{opacity:0;transform:scale(.3);}30%{opacity:1;}100%{opacity:0;transform:scale(2.2);}}
+  .fx-spark{width:10px;height:10px;background:#9ff09f;border-radius:2px;animation:spark .8s ease-out forwards;}
+  @keyframes spark{0%{opacity:0;transform:translateY(0) scale(.4);}40%{opacity:1;}100%{opacity:0;transform:translateY(-40px) scale(1);}}
+  #bFlash{position:absolute;inset:0;background:#fff;opacity:0;z-index:4;pointer-events:none;}
+  #bFlash.on{animation:bf .18s;}
+  @keyframes bf{0%{opacity:.5;}100%{opacity:0;}}
+  #bShake.shake{animation:bshake .35s;}
+  @keyframes bshake{0%,100%{transform:translate(0,0);}20%{transform:translate(-6px,3px);}60%{transform:translate(5px,-2px);}}
+
+  #shop{position:absolute;inset:0;z-index:26;display:none;flex-direction:column;padding:14px;background:rgba(0,0,0,.96);}
+  #shop.show{display:flex;}
+  .shop-title{font-size:17px;text-align:center;margin-bottom:6px;color:var(--gold);}
+  .shop-gold{text-align:center;font-size:13px;margin-bottom:12px;}
+  .shop-list{flex:1;overflow-y:auto;}
+  .shop-row{display:flex;justify-content:space-between;align-items:center;border:2px solid #555;border-radius:6px;padding:10px 12px;margin-bottom:9px;}
+  .shop-row b{font-size:15px;} .shop-row small{display:block;color:#9ab;font-size:11px;}
+  .shop-row .price{color:var(--gold);font-size:14px;margin-right:10px;}
+  .buy{border:2px solid #2a4;color:#7e7;background:#000;border-radius:5px;padding:6px 14px;font-family:inherit;font-size:13px;cursor:pointer;}
+  .buy:active{background:#2a4;color:#000;}
+  .btn{font-family:'DotGothic16',monospace;font-size:15px;color:#fff;background:#111;border:3px solid #fff;border-radius:7px;padding:11px;cursor:pointer;}
+  .btn:active{background:#2a4;} .btn.green{border-color:#2a4;color:#7e7;}
+  #partyStrip{display:flex;gap:8px;margin-top:4px;}
+  .ps-unit{flex:1;font-size:10px;line-height:1.25;}
+  .ps-unit .ps-name{color:var(--gold);font-size:10px;}
+  .ps-unit .ps-lv{color:#bfe3ff;font-size:9px;font-weight:bold;}
+  .ps-unit .ps-hp{color:var(--hp);} .ps-unit .ps-mp{color:var(--mp);}
+  .ps-unit .hbar{margin-top:1px;height:5px;}
+  .ps-unit.downed{opacity:.4;}
+  #placeName{margin-top:4px;text-align:center;font-size:11px;letter-spacing:1px;
+    color:#cfe6ff;border-top:1px solid #2a3550;padding-top:3px;}
+  #placeName:empty{display:none;}
+</style>
+
+<div id="app">
+  <div id="strip">
+    <div class="strip-top">
+      <span class="s-cell">◈<b id="sGold">0</b></span>
+      <span class="s-cell" id="muteBtn" style="cursor:pointer;font-size:15px">🔊</span>
+    </div>
+    <div id="partyStrip"></div>
+    <div id="placeName"></div>
+  </div>
+
+  <div id="stage">
+    <canvas id="view"></canvas>
+    <div id="msgBox" class="win"><div id="msgText"></div></div>
+    <div id="cmdBox" class="win"></div>
+  </div>
+
+  <div id="pad">
+    <div class="dpad">
+      <div class="dbtn empty"></div><div class="dbtn" data-dir="up">▲</div><div class="dbtn empty"></div>
+      <div class="dbtn" data-dir="left">◀</div><div class="dbtn empty"></div><div class="dbtn" data-dir="right">▶</div>
+      <div class="dbtn empty"></div><div class="dbtn" data-dir="down">▼</div><div class="dbtn empty"></div>
+    </div>
+    <div class="act-col">
+      <button class="abtn" id="btnA">けってい</button>
+      <button class="abtn menu" id="btnMenu">めいれい</button>
+    </div>
+  </div>
+
+  <div id="battle">
+    <div id="bShake" class="b-stage">
+      <div class="b-far"></div>
+      <div class="b-grid"></div>
+      <div id="bEnemies"></div>
+      <div id="bFlash"></div>
+    </div>
+    <div id="bParty"></div>
+    <div id="bAuto">AUTO ▢</div>
+    <div id="bMsg" class="win"><div id="bMsgText"></div></div>
+    <div id="bCmd" class="win"></div>
+    <div id="bSub" class="win"></div>
+  </div>
+
+  <div id="shop">
+    <div class="shop-title" id="shopTitle">みせ</div>
+    <div class="shop-gold">しょじきん ◈<span id="shopGold">0</span></div>
+    <div class="shop-list" id="shopList"></div>
+    <button class="btn" style="margin-top:8px" onclick="game.closeShop()">みせを でる</button>
+  </div>
+
+  <div id="title">
+    <div class="t-logo">
+      <svg class="t-dragon" viewBox="0 0 120 90" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path fill="#0a0e1c" d="M70 8c-6 2-9 7-9 12 0 2 1 4 2 6-8-3-15-2-22 3-5 4-7 9-6 14-4-2-9-2-13 1 4 0 7 2 9 5-5 1-9 4-11 9 5-3 10-3 15-1-3 3-4 7-3 11 3-4 7-6 12-6-1 4 0 8 3 11 1-4 4-7 8-8-1 5 1 10 5 13 0-5 2-9 6-12 2 4 6 7 11 7-3-3-4-7-3-11 4 3 9 4 14 2-4-1-7-4-8-8 6 2 12 0 16-5-4 1-8 0-11-3 7-1 13-5 16-12-4 3-9 4-13 2 5-3 8-8 8-14 0-4-1-7-4-10 3 0 6-1 8-4-3 1-6 0-8-2 2-2 3-5 2-8-2 3-5 5-9 5l3-6c-5 2-9 1-12-2 1 4 0 8-3 11-2-4-5-7-9-8 4 4 5 9 3 14-3-5-8-8-13-8 5 3 8 8 8 13-3-3-7-5-11-5z"/>
+      </svg>
+      <div class="t-name">ALDIA<br>FANTASY</div>
+    </div>
+    <div class="t-jp">アルディア ファンタジー</div>
+
+    <div class="t-menu" id="titleMenu">
+      <div class="t-item" data-act="start"><span class="t-cur">▶</span>START</div>
+      <div class="t-item" id="contItem" data-act="continue" style="display:none"><span class="t-cur">▶</span>CONTINUE</div>
+    </div>
+
+    <div class="t-speed">
+      <div class="t-speed-label">― MESSAGE SPEED ―</div>
+      <div class="t-speed-row" id="speedRow">
+        <span class="t-spd" data-spd="slow"><span class="t-cur">▶</span>SLOW</span>
+        <span class="t-spd" data-spd="normal"><span class="t-cur">▶</span>NORMAL</span>
+        <span class="t-spd" data-spd="fast"><span class="t-cur">▶</span>FAST</span>
+      </div>
+    </div>
+
+    <div class="t-update">
+      <span class="t-upbtn" id="updateBtn">アップデートを かくにん</span>
+      <div class="t-upmsg" id="updateMsg"></div>
+      <div class="t-bar" id="updateBar"><i id="updateBarFill"></i></div>
+    </div>
+
+    <div class="t-copy">©2026 TRP　<span class="t-ver" id="verText">ver -</span></div>
+    <div id="devStartBtn" title="?"></div>
+    <div id="devStartBtn2" title="?"></div>
+  </div>
+
+  <div id="credits"><div id="creditsInner"></div></div>
+</div>
+
+<script>
+/* =========================================================================
+   アルディア・ファンタジー II ── ドット絵 / 広域マップ / 戦闘演出版
+   ========================================================================= */
+
+/* ---- マップ（拡張）----
+   . 草原 / T 木 / M 山 / ~ 水 / B 橋 / C 城 / V 町 / W 村 / E 洞窟 / D 鍵扉 / > 階段 */
+const MAPS = {
+  world:{ indoor:false, rows:[
+    "~~~~~~~~~~~~~~~~~~~~",
+    "~TT....MM.....T....~",
+    "~T...........MM....~",
+    "~...V.....C........~",
+    "~....TT............~",
+    "~T.......MM......TT~",
+    "~....MM............~",
+    "~T......TT........T~",
+    "~....~~~~~~~~~~....~",
+    "~..T.BBBBBBBBBB..W.~",
+    "~....~~~~~~~~~~....~",
+    "~T................T~",
+    "~......MM..TT......~",
+    "~.E.......P...M....~",
+    "~T....MM.....M...T.~",
+    "~..TT...........T..~",
+    "~T...........T..O.~",
+    "~~~~~~~~~~~~~~~~~~~~",
+  ]},
+  castle:{ indoor:true, rows:[
+    "###########",
+    "#.........#",
+    "#....K....#",
+    "#.........#",
+    "#.#.....#.#",
+    "#.........#",
+    "#.#.....#.#",
+    "#.........#",
+    "#.........#",
+    "#....,....#",
+    "###########",
+  ]},
+  town1:{ indoor:true, rows:[
+    "#############",
+    "#...........#",
+    "#.W.......I.#",
+    "#...........#",
+    "#.N.......C.#",
+    "#...........#",
+    "#....a.b....#",
+    "#...........#",
+    "#.x.......c.#",
+    "#.....,.....#",
+    "#############",
+  ]},
+  town2:{ indoor:true, rows:[
+    "###########",
+    "#.........#",
+    "#.S.....J.#",
+    "#.........#",
+    "#...d.e...#",
+    "#.........#",
+    "#.y.......#",
+    "#....,....#",
+    "###########",
+  ]},
+  cave1:{ indoor:true, rows:[
+    "#############",
+    "#...#.....#.#",
+    "#.#.#.###.#.#",
+    "#.#...#z..#.#",
+    "#.#####.###.#",
+    "#.....#...#.#",
+    "###.#.#.#.#.#",
+    "#...#...#...#",
+    "#.###.###.#.#",
+    "#.#...>.....#",
+    "#.#.#####.#.#",
+    "#.......,...#",
+    "#############",
+  ]},
+  cave2:{ indoor:true, rows:[
+    "###########",
+    "#....K....#",
+    "#.........#",
+    "#####D#####",
+    "#.........#",
+    "#..#...#..#",
+    "#.........#",
+    "#..#...#..#",
+    "#.........#",
+    "#....>....#",
+    "###########",
+  ]},
+  jobcastle:{ indoor:true, rows:[
+    "###########",
+    "#....J....#",
+    "#.........#",
+    "#.#.....#.#",
+    "#.........#",
+    "#.s.....g.#",
+    "#.........#",
+    "#.........#",
+    "#....,....#",
+    "###########",
+  ]},
+  // ===== エルフ国（塔20階から転送される別世界）=====
+  // 中央に枯れた世界樹(Y)。町(V)・村(W)・転職(P)・ボスダンジョン入口(E)を配置
+  elf:{ indoor:false, elf:true, rows:[
+    "TTTTTTTTTTTTTTTTTTTT",
+    "T..W.....TT.......PT",
+    "T........T.........T",
+    "T...TT.......TT....T",
+    "T.........TT.......T",
+    "T....~~~.......TT..T",
+    "T....~Y~...........T",
+    "T....~.~......TT...T",
+    "T.........TT.......T",
+    "TT...TT............T",
+    "T.........TT....E..T",
+    "T..V.....TT........T",
+    "T....TT............T",
+    "T.........TT....,..T",
+    "TTTTTTTTTTTTTTTTTTTT",
+  ]},
+  elftown:{ indoor:true, rows:[
+    "#############",
+    "#...........#",
+    "#...........#",
+    "#...........#",
+    "#...........#",
+    "#...........#",
+    "#...........#",
+    "#...........#",
+    "#...........#",
+    "#.....,.....#",
+    "#############",
+  ]},
+  elfvillage:{ indoor:true, rows:[
+    "###########",
+    "#.........#",
+    "#.........#",
+    "#.........#",
+    "#.........#",
+    "#.........#",
+    "#.........#",
+    "#....,....#",
+    "###########",
+  ]},
+  elfjob:{ indoor:true, rows:[
+    "###########",
+    "#.........#",
+    "#.........#",
+    "#.#.....#.#",
+    "#.........#",
+    "#.........#",
+    "#.........#",
+    "#....,....#",
+    "###########",
+  ]},
+  elfcave:{ indoor:true, rows:[
+    "#############",
+    "#....k......#",
+    "#.........#.#",
+    "#####.#####.#",
+    "#####D#######",
+    "#...#.....#K#",
+    "#.#.#.###.#.#",
+    "#.#...#...#.#",
+    "#.###.#.#.#.#",
+    "#...#z..#...#",
+    "#.#######.#.#",
+    "#......,....#",
+    "#############",
+  ]},
+};
+
+const MAP_NAMES = {
+  world:'フィールド', castle:'アルディアじょう', town1:'はじまりの まち',
+  town2:'みなみの むら', cave1:'ましょうの どうくつ', cave2:'さいかいそう',
+  jobcastle:'てんしょくの しろ',
+  elf:'エルフのくに', elftown:'エルフの まち', elfvillage:'エルフの さと',
+  elfjob:'こだいの しんでん', elfcave:'せかいじゅの ねもと',
+};
+
+const WARPS = [
+  { map:'world', x:4,  y:3,  to:{map:'town1', x:6, y:9} },
+  { map:'town1', x:6,  y:9,  to:{map:'world', x:5, y:3} },
+  { map:'world', x:10, y:3,  to:{map:'castle',x:5, y:9} },
+  { map:'castle',x:5,  y:9,  to:{map:'world', x:10,y:4} },
+  { map:'world', x:17, y:9,  to:{map:'town2', x:5, y:7} },
+  { map:'town2', x:5,  y:7,  to:{map:'world', x:16,y:9} },
+  { map:'world', x:2,  y:13, to:{map:'cave1', x:6, y:11} },
+  { map:'cave1', x:6,  y:11, to:{map:'world', x:3, y:13} },
+  { map:'cave1', x:6,  y:9,  to:{map:'cave2', x:5, y:9} },  // 下り階段
+  { map:'cave2', x:5,  y:9,  to:{map:'cave1', x:6, y:9} },
+  { map:'world', x:10, y:13, to:{map:'jobcastle', x:5, y:8} },
+  { map:'jobcastle', x:5, y:8, to:{map:'world', x:10, y:14} },
+  // --- エルフ国内のワープ（外フィールドelf ⇔ 各施設）---
+  { map:'elf', x:3,  y:11, to:{map:'elftown', x:6, y:9} },     // 町V
+  { map:'elftown', x:6, y:9, to:{map:'elf', x:3, y:11} },
+  { map:'elf', x:3,  y:1,  to:{map:'elfvillage', x:4, y:7} },  // 村W
+  { map:'elfvillage', x:4, y:7, to:{map:'elf', x:3, y:1} },
+  { map:'elf', x:18, y:1,  to:{map:'elfjob', x:5, y:7} },      // 転職P
+  { map:'elfjob', x:5, y:7, to:{map:'elf', x:18, y:1} },
+  { map:'elf', x:16, y:10, to:{map:'elfcave', x:6, y:11} },    // ボスダンジョンE
+  { map:'elfcave', x:6, y:11, to:{map:'elf', x:16, y:10} },
+];
+
+const NPCS = {
+  castle:[
+    { x:5,y:2, emoji:'🤴', act:'king' },
+    { x:6,y:2, emoji:'👸', act:'princess', showIfFlag:'won', hideIfFlagOn:'princessLeft' },
+    { x:1,y:4, emoji:'💂', talk:['へいし「ましょうの しろは にしの どうくつ。その さいかいそうに ガルゾスが おる。」'] },
+    { x:9,y:4, emoji:'💂', talk:['へいし「みなみの むらの けんじゃが ちからに なってくれるはず。」'] },
+    { x:5,y:6, emoji:'💂', talk:['へいし「フィールドの みなみに 『てんしょくの しろ』が ある。」','へいし「レベル10を こえたら、そこで かくべつの ちからに めざめられる ぞ。」'] },
+  ],
+  jobcastle:[
+    { x:5,y:1, emoji:'🧙', act:'jobmaster' },
+    { x:2,y:5, emoji:'🟦', act:'slimejob' },
+    { x:8,y:5, emoji:'🧑‍🌾', talk:['たびびと「ここは てんしょくの しろ。」','たびびと「みなもとの ちからを ひきだす ばしょさ。」'] },
+  ],
+  town1:[
+    { x:2,y:2, emoji:'⚔️', act:'shop_weapon1' },
+    { x:10,y:2,emoji:'🧪', act:'shop_item' },
+    { x:2,y:4, emoji:'🛏️', act:'inn', innCost:10 },
+    { x:10,y:4,emoji:'⛪', act:'church' },
+    { x:5,y:6, emoji:'🧑‍🦰', act:'warrior', hideIfFlag:'joinWarrior' },
+    { x:7,y:6, emoji:'👧', talk:['こども「まおうの しろは こわいから ちかづいちゃ だめだって。」'] },
+    { x:2,y:8, emoji:'🐕', talk:['いぬ「ワン！（しっぽを ふっている）」'] },
+    { x:10,y:6,emoji:'📋', act:'questboard' },
+  ],
+  town2:[
+    { x:2,y:2, emoji:'🧙‍♂️', act:'sage', hideIfFlag:'joinSage' },
+    { x:8,y:2, emoji:'🗡️', act:'shop_weapon2' },
+    { x:4,y:4, emoji:'👴', talk:['ろうじん「ましょうの しろの かぎは おうから さずかったか？ なくては とびらは あかぬ。」'] },
+    { x:6,y:4, emoji:'🧶', talk:['おんな「だいいやしの じゅもんが あれば、ながい たびも あんしんね。」'] },
+    { x:2,y:6, emoji:'🐈', talk:['ねこ「ニャー。」'] },
+  ],
+  cave1:[
+    { x:7,y:3, emoji:'💀', talk:['しゃれこうべ「…さいかいそうへ おりるのだ…」'] },
+  ],
+  cave2:[
+    { x:5,y:1, emoji:'👹', act:'boss' },
+    { x:2,y:4, emoji:'☠️', act:'skull' },
+  ],
+  // ===== エルフ国 NPC =====
+  elf:[
+    { x:6,y:6, emoji:'🌳', act:'worldtree' },  // 枯れた世界樹（中央）
+  ],
+  elftown:[
+    { x:1,y:2, emoji:'🏹', act:'shop_elfweapon' },
+    { x:10,y:2,emoji:'🧪', act:'shop_elfitem' },
+    { x:1,y:4, emoji:'🛡️', act:'shop_elfarmor' },
+    { x:10,y:4,emoji:'⛪', act:'church' },
+    { x:5,y:6, emoji:'🧝‍♀️', act:'elfmaiden' },
+    { x:7,y:6, emoji:'🧝', talk:['エルフ「せかいじゅが かれれば、この くにも きえる…」','エルフ「ねもとに すくう やみを たおして ください。」'] },
+    { x:2,y:8, emoji:'🧝‍♂️', talk:['エルフ「ねもとへの とびらは かぎが かかって おる。','どうくつの おくの かぎを さがすのじゃ。」'] },
+    { x:10,y:8,emoji:'🛏️', act:'inn', innCost:30 },
+  ],
+  elfvillage:[
+    { x:2,y:2, emoji:'👵', talk:['エルフの ろうば「むかし せかいじゅは みどりに かがやいて おった。」'] },
+    { x:8,y:2, emoji:'🧝‍♀️', talk:['エルフ「あなたが でんせつの ゆうしゃ さま…」','エルフ「どうか この くにを すくって。」'] },
+    { x:4,y:4, emoji:'🍄', talk:['きのこ「…（しゃべらない）」'] },
+    { x:2,y:6, emoji:'🛡️', act:'shop_elfarmor' },
+    { x:8,y:6, emoji:'🧪', act:'shop_elfitem' },
+  ],
+  elfjob:[
+    { x:5,y:1, emoji:'🧝‍♀️', act:'jobmaster' },
+    { x:2,y:5, emoji:'🍃', talk:['せいれい「こだいの ちからは レベル10を こえた もの にだけ…」'] },
+    { x:8,y:5, emoji:'🧝', talk:['エルフ「ここは こだいの しんでん。みなもとの ちからが ねむる。」'] },
+  ],
+  elfcave:[
+    { x:5,y:1, emoji:'🪼', act:'elfboss' },
+    { x:11,y:5, emoji:'🗝️', act:'elfkey', hideIfFlag:'elfHasKey' },
+  ],
+};
+
+/* ---- 宝箱: map別。開けたら flags に記録 ---- */
+const CHESTS = [
+  { id:'c1', map:'town1', x:2, y:8, give:{gold:60} },
+  { id:'c2', map:'town1', x:10,y:8, give:{item:'herb', n:3} },
+  { id:'c3', map:'town2', x:2, y:6, give:{item:'water', n:2} },
+  { id:'c4', map:'cave1', x:8, y:3, give:{gold:120} },
+  { id:'c5', map:'cave1', x:10,y:9, give:{item:'hipotion', n:2} },
+  { id:'c6', map:'cave2', x:2, y:5, give:{gold:200} },
+  { id:'c7', map:'cave2', x:8, y:5, give:{item:'hipotion', n:3} },
+  { id:'skull_chest', map:'cave2', x:3, y:4, locked:true, give:{item:'twig', n:1} },
+];
+
+const ENEMIES = {
+  slime:  { name:'スライム',       art:'🟦', hp:7,  atk:6,  def:3,  spd:4,  xp:2,  gold:3  },
+  ghost:  { name:'まよいびと',     art:'👻', hp:11, atk:9,  def:4,  spd:9,  xp:4,  gold:6  },
+  wolf:   { name:'のら おおかみ',  art:'🐺', hp:17, atk:12, def:5,  spd:14, xp:7,  gold:10 },
+  bat:    { name:'ほら こうもり',  art:'🦇', hp:13, atk:11, def:3,  spd:18, xp:6,  gold:8, inflict:{status:'poison',rate:0.3} },
+  mage:   { name:'やみの まどうし',art:'🧙', hp:16, atk:13, def:3,  spd:10, xp:12, gold:18, spell:'flame', inflict:{status:'sleep',rate:0.25} },
+  golem:  { name:'いわの きょじん',art:'🗿', hp:34, atk:17, def:10, spd:3,  xp:20, gold:28 },
+  reaper: { name:'しにがみ',       art:'☠️', hp:46, atk:22, def:9,  spd:12, xp:30, gold:42, spell:'flame' },
+  garzos: { name:'闇の王 ガルゾス', art:'👹', hp:520,atk:52, def:28, spd:16, xp:0,  gold:0, boss:true, spell:'darkflame',
+            form2:{ name:'真ガルゾス・しんえん', art:'😈', spell:'darkflame' } },
+  // --- エルフ国（世界樹のエピソード）の敵 ---
+  rootworm:{ name:'こんを むしばむ もの', art:'🐛', hp:85, atk:36, def:16, spd:15, xp:70, gold:75, inflict:{status:'poison',rate:0.4} },
+  shade:   { name:'もりの しょうき',   art:'🌫️', hp:100,atk:42, def:18, spd:22, xp:90, gold:95, spell:'flame', inflict:{status:'sleep',rate:0.35} },
+  treant:  { name:'くろずんだ きょぼく', art:'🌲', hp:180,atk:50, def:30, spd:7,  xp:150,gold:170 },
+  // エルフ国ボス: 世界樹を枯らす元凶
+  blight:  { name:'えだ こうろの ヌァザ', art:'🪼', hp:1100, atk:72, def:36, spd:20, xp:0, gold:0, boss:true, spell:'darkflame',
+             form2:{ name:'せかいじゅを むしばむ おおね', art:'🪸', spell:'darkflame' } },
+};
+// 敵グループ: フィールド/ダンジョンで出る編成（重みつき）
+const ENC_GROUPS = {
+  world:[
+    ['slime'], ['slime','slime'], ['ghost'], ['slime','ghost'],
+    ['wolf'], ['bat','bat'], ['ghost','slime'], ['mage'],
+  ],
+  cave1:[
+    ['ghost','ghost'], ['wolf'], ['bat','bat'], ['wolf','ghost'],
+    ['mage'], ['golem'], ['mage','bat'], ['wolf','wolf'],
+  ],
+  cave2:[
+    ['golem'], ['reaper'], ['mage','golem'], ['golem','golem'],
+    ['reaper','mage'], ['golem','reaper'],
+  ],
+  elf:[
+    ['rootworm'], ['shade'], ['rootworm','shade'], ['shade','shade'],
+    ['rootworm','rootworm'], ['treant'],
+  ],
+  elfcave:[
+    ['rootworm','shade'], ['treant'], ['shade','shade','rootworm'],
+    ['treant','shade'], ['rootworm','treant'],
+  ],
+};
+// 仲間: 加入できるキャラ（賢者＝魔法、戦士＝物理）
+const ALLIES = {
+  warrior:{ name:'せんし', art:'🧑‍🦰',
+    lv:1, maxHp:30, maxMp:0,  atk:8, def:5, spd:8,  spells:[], learn:{4:'',8:''} },
+  sage:{ name:'けんじゃ', art:'🧙‍♂️',
+    lv:1, maxHp:28, maxMp:36, atk:7, def:5, spd:13, spells:['heal','flame'], learn:{4:'bigflame',6:'bigheal',10:'bigflame'} },
+};
+
+const SPELLS = {
+  heal:    { name:'いやし',     mp:3,  type:'heal',  amt:30, field:true },
+  flame:   { name:'ほのお',     mp:4,  type:'dmg',   base:16 },
+  bigheal: { name:'だいいやし', mp:8,  type:'heal',  amt:90, field:true },
+  bigflame:{ name:'だいほのお', mp:12, type:'dmg',   base:50 },
+};
+const LEARN = { 3:'heal', 5:'flame', 9:'bigheal', 13:'bigflame' };
+
+// とくぎ（戦闘特技）。賢者=かちこち / せんし=挑発
+const SKILLS = {
+  kachikochi:{ name:'かちこち', mp:14, kind:'guardall',
+    desc:'みかた ぜんいんの ひばダメージを 3ターン 20%カット' },
+  provoke:{ name:'ちょうはつ', mp:0, kind:'provoke', once:true,
+    desc:'てきを じぶんに あつめ、ぼうぎょ+30（2ターン・1せんとう1かい）' },
+};
+
+// 転職: 一定Lvで勇者が転職できる上位職
+const JOBS = {
+  hero:    { name:'ゆうしゃ',   art:'🧝' },
+  paladin: { name:'パラディン', art:'🛡️', reqLv:10, bonusHp:30, bonusDef:8, bonusAtk:4, learn:'bigheal',  desc:'まもりに すぐれた せいきし' },
+  hero_k:  { name:'ようしゃ',   art:'⚔️', reqLv:10, bonusHp:14, bonusDef:2, bonusAtk:14, learn:'bigflame', desc:'こうげきに とくかした つわもの' },
+  // 2次職（こだいの しんでん・Lv15・1次職から派生）
+  general: { name:'ジェネラル', art:'🛡️', reqLv:15, from:'paladin', bonusHp:60, bonusDef:20, bonusAtk:8,
+    trait:'cover', desc:'みかたを かばう えいゆう。せんとうちゅう ひんしの なかまを じどうで かばう（被ダメ半分）' },
+  berserker:{ name:'バーサーカー', art:'🔥', reqLv:15, from:'hero_k', bonusHp:40, bonusDef:4, bonusAtk:24,
+    trait:'fury', desc:'HPが ひくいほど ちからを ます。ひんしで あたえる ダメージ 200%' },
+};
+
+// 状態異常呪文を追加
+const STATUS_SPELLS = {
+  sleepmagic:{ name:'ねむり', mp:5, type:'status', status:'sleep' },
+  poismagic: { name:'どくきり', mp:5, type:'status', status:'poison' },
+};
+
+// サブクエスト: 敵討伐系。target を need 体倒すと達成→報酬
+const SUBQUESTS = {
+  q_slime:{ name:'スライムたいじ', target:'slime', need:5, rewardGold:120, rewardItem:'hipotion', rewardN:2,
+    desc:'スライムを 5たい たおす', accept:'「スライムが ふえて こまっとる。5たい たおしてくれ！」', done:'「たすかったよ！ これは おれいだ。」' },
+  q_wolf:{ name:'おおかみがり', target:'wolf', need:3, rewardGold:200, rewardItem:'panacea', rewardN:1,
+    desc:'のら おおかみを 3たい たおす', accept:'「おおかみが かちくを おそう。3たい たのむ！」', done:'「みごとだ！ うけとってくれ。」' },
+  q_golem:{ name:'いわのきょじん たいじ', target:'golem', need:2, rewardGold:500, rewardItem:'hipotion', rewardN:3,
+    desc:'いわの きょじんを 2たい たおす', accept:'「どうくつの きょじんを 2たい たおしてくれ。」', done:'「すばらしい！ れいを はずもう。」' },
+};
+
+const ITEMS = {
+  herb:    { name:'やくそう',     type:'heal', amt:30, price:8,  desc:'HPを30 かいふく' },
+  water:   { name:'まほうの水',   type:'mana', amt:18, price:22, desc:'MPを18 かいふく' },
+  hipotion:{ name:'じょうやくそう',type:'heal', amt:90, price:60, desc:'HPを90 かいふく' },
+  antidote:{ name:'どくけしそう', type:'cure', cure:'poison', price:12, desc:'どくを なおす' },
+  awake:   { name:'めざましそう', type:'cure', cure:'sleep',  price:14, desc:'ねむりを なおす' },
+  panacea: { name:'まんびょうやく',type:'cure', cure:'all',    price:40, desc:'すべての じょうたいいじょうを なおす' },
+  revive:  { name:'そせいやく',   type:'revive', rate:0.4, price:300, desc:'たおれた なかま ぜんいんが ていかくりつで いきかえる' },
+};
+
+// 装備マスタ（武器/防具）。slot: weapon/armor
+const GEAR = {
+  none:      { name:'なし',         slot:'weapon', atk:0 },
+  cloth:     { name:'ぬののふく',   slot:'armor',  def:0 },
+  copper:    { name:'どうの つるぎ',   slot:'weapon', atk:8,  price:60 },
+  steel:     { name:'はがねの つるぎ', slot:'weapon', atk:20, price:380 },
+  flameswd:  { name:'ほのおの つるぎ', slot:'weapon', atk:34, price:1100 },
+  leather:   { name:'かわの よろい',   slot:'armor',  def:6,  price:90 },
+  iron:      { name:'てつの よろい',   slot:'armor',  def:16, price:520 },
+  dragon:    { name:'りゅうの よろい', slot:'armor',  def:28, price:1400 },
+  excalibur: { name:'エクスカリバー',  slot:'weapon', atk:100, special:true },
+  twig:      { name:'ひのきのぼうきれ',slot:'weapon', atk:2, cursed:true, special:true },
+  balmung:   { name:'ブルトガング',    slot:'weapon', atk:80, cursed:true, special:true, multi:true },
+  // --- エルフ国の店で売る上位装備 ---
+  excalipur: { name:'エクスカリパー',  slot:'weapon', atk:38, price:2600, desc:'エクスカリバー…に にた なにか' },
+  elfblade:  { name:'エルフの せいけん',slot:'weapon', atk:62, price:5200, desc:'エルフに つたわる ひかりの けん' },
+  holylance: { name:'せいなる ランス',  slot:'weapon', atk:78, price:9800, desc:'まを はらう せいなる やり' },
+  elfmail:   { name:'エルフの よろい',   slot:'armor',  def:40, price:3000, desc:'かるく じょうぶな もりの よろい' },
+  mithril:   { name:'ミスリルの よろい', slot:'armor',  def:58, price:6800, desc:'でんせつの きんぞくの よろい' },
+  dangerswim:{ name:'あぶない みずぎ',   slot:'armor',  def:10, price:210000,charm:0.15,desc:'ぼうぎょ+10。ときどき てきを みりょうし こうどうふのうに する' },
+  watergarb: { name:'みずの はごろも',   slot:'armor',  def:100,price:14000,desc:'みずの せいれいの はごろも。ぼうぎょ+100' },
+};
+
+const SHOPS = {
+  weapon1:{ title:'ぶきや', goods:[
+    { kind:'gear', id:'copper' },
+    { kind:'gear', id:'leather' },
+    { kind:'gear', id:'steel' },
+  ]},
+  weapon2:{ title:'みなみの ぶきや', goods:[
+    { kind:'gear', id:'iron' },
+    { kind:'gear', id:'flameswd' },
+    { kind:'gear', id:'dragon' },
+  ]},
+  item:{ title:'どうぐや', goods:[
+    { kind:'item', id:'herb' },
+    { kind:'item', id:'water' },
+    { kind:'item', id:'hipotion' },
+    { kind:'item', id:'antidote' },
+    { kind:'item', id:'awake' },
+    { kind:'item', id:'panacea' },
+  ]},
+  // --- エルフ国の店 ---
+  elfweapon:{ title:'エルフの ぶきや', goods:[
+    { kind:'gear', id:'excalipur' },
+    { kind:'gear', id:'elfblade' },
+    { kind:'gear', id:'holylance' },
+  ]},
+  elfarmor:{ title:'エルフの ぼうぐや', goods:[
+    { kind:'gear', id:'elfmail' },
+    { kind:'gear', id:'mithril' },
+    { kind:'gear', id:'dangerswim' },
+    { kind:'gear', id:'watergarb' },
+  ]},
+  elfitem:{ title:'エルフの どうぐや', goods:[
+    { kind:'item', id:'hipotion' },
+    { kind:'item', id:'panacea' },
+    { kind:'item', id:'revive' },
+  ]},
+};
+
+const STORY = [
+  { id:'intro', once:true, pages:[
+    'めをさました ゆうしゃ よ。','ここは アルディアじょう。','うえの おうの まえへ すすむのだ。（▲で いどう、「けってい」で はなす）'
+  ]},
+  { id:'town1first', pages:[
+    'はじまりの まちに たどりついた。','うわさでは、ともに たたかってくれる つわものが この まちに いるらしい。','まちの ひとに はなしかけてみよう。'
+  ]},
+  { id:'town2first', pages:[
+    'みなみの むらに たどりついた。','りっぱな ぶきが うられ、けんじゃの すがたも みえる。'
+  ]},
+  { id:'cavedeep', pages:[
+    'さいかいそうへ つづく かいだんを みつけた。','つめたい くうきが あしもとから はいあがる…'
+  ]},
+];
+
+const NEED_XP = lv => Math.round(6*Math.pow(lv,2.1))+4;
+
+function freshPlayer(){
+  return {
+    lv:1, xp:0, gold:0,
+    hp:18, maxHp:18, mp:0, maxMp:0, baseAtk:4, baseDef:2, baseSpd:10,
+    job:'hero',                       // 勇者の現在の職業
+    ownedGear:['none','cloth'],       // 所持している装備(GEARのキー)
+    equip:{ weapon:'none', armor:'cloth' }, // 装備中
+    status:'',                        // 状態異常 ''/poison/sleep/paralyze
+    spells:[], items:{ herb:2 },
+    party:[],
+    allyState:{},
+    map:'castle', x:5, y:7, dir:'up',
+    flags:{ metKing:false, hasKey:false, doorOpen:false, won:false, joinWarrior:false, joinSage:false,
+            excaliburStage:0, cursed:false, jobChanged:false, jobChanged2:false,
+            elfQuest:false, elfDoorOpen:false, elfHasKey:false, elfCleared:false, elfBasket:false,
+            elfReturnDoor:false, backFromElf:false, finalEnd:false },
+    quests:{},                        // サブクエスト進捗 {questId:{state,count}}
+    seen:[], chests:[],
+  };
+}
+
+const SAVE_KEY='aldia_save_v2';
+const MSGSPD_KEY='aldia_msgspeed';
+const GAME_VERSION='1.0';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+
+// ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
+const STORE = {
+  async get(key){
+    if(typeof window!=='undefined' && window.storage && window.storage.get){
+      try{ return await window.storage.get(key); }catch(e){ /* fall through */ }
+    }
+    try{ const v=localStorage.getItem(key); return v==null?null:{key,value:v}; }
+    catch(e){ return null; }
+  },
+  async set(key,value){
+    if(typeof window!=='undefined' && window.storage && window.storage.set){
+      try{ return await window.storage.set(key,value); }catch(e){ /* fall through */ }
+    }
+    try{ localStorage.setItem(key,value); return {key,value}; }
+    catch(e){ return null; }
+  }
+};
+const VIEW=11;
+const SOLID=new Set(['#','T','M','~','Y']);
+
+// ===== ダンジョン自動生成（無限の塔）=====
+function generateTower(floor){
+  const W=11,H=11;
+  const g=Array.from({length:H},()=>Array(W).fill('#'));
+  function carve(x,y){
+    g[y][x]='.';
+    const dirs=[[0,-2],[0,2],[-2,0],[2,0]].sort(()=>Math.random()-0.5);
+    for(const [dx,dy] of dirs){
+      const nx=x+dx, ny=y+dy;
+      if(nx>0&&nx<W-1&&ny>0&&ny<H-1&&g[ny][nx]==='#'){
+        g[y+dy/2][x+dx/2]='.'; carve(nx,ny);
+      }
+    }
+  }
+  carve(1,1);
+  const floors=[];
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++) if(g[y][x]==='.') floors.push([x,y]);
+  const entrance=floors.reduce((a,b)=>(b[1]>a[1])?b:a, floors[0]);
+  const stair=floors.reduce((a,b)=>{
+    const da=Math.abs(a[0]-entrance[0])+Math.abs(a[1]-entrance[1]);
+    const db=Math.abs(b[0]-entrance[0])+Math.abs(b[1]-entrance[1]);
+    return db>da?b:a;
+  }, floors[0]);
+  g[stair[1]][stair[0]]='>';
+  // 宝箱を配置（入口・階段以外の通路から1〜2個）
+  const spots=floors.filter(([x,y])=>!(x===entrance[0]&&y===entrance[1])&&!(x===stair[0]&&y===stair[1]));
+  const chests={};
+  const numChests = Math.random()<0.5?2:1;
+  for(let i=0;i<numChests && spots.length;i++){
+    const idx=Math.floor(Math.random()*spots.length);
+    const [cx,cy]=spots.splice(idx,1)[0];
+    g[cy][cx]='C'; // 塔の宝箱タイル
+    // 中身: 階が深いほど豪華。ゴールド or 価値アイテム
+    const roll=Math.random();
+    if(roll<0.5){ chests[cx+','+cy]={gold: 50+floor*40+Math.floor(Math.random()*floor*30)}; }
+    else if(roll<0.8){ chests[cx+','+cy]={item:'hipotion', n:1+Math.floor(floor/5)}; }
+    else if(roll<0.95){ chests[cx+','+cy]={item:'panacea', n:1}; }
+    else { // レア: 強力装備
+      const rare = floor>=10?'dragon':(floor>=5?'iron':'steel');
+      chests[cx+','+cy]={gear:rare}; }
+  }
+  return { rows:g.map(r=>r.join('')), entrance, stair, indoor:true, floor, chests, opened:{} };
+}
+
+/* ---- サウンド（Web Audio 合成）---- */
+const audio = {
+  ctx:null, on:true, master:null, bgmTimer:null, cur:null,
+  init(){ if(this.ctx) return;
+    try{ this.ctx=new (window.AudioContext||window.webkitAudioContext)();
+      this.master=this.ctx.createGain(); this.master.gain.value=0.15;
+      this.master.connect(this.ctx.destination);
+    }catch(e){ this.ctx=null; } },
+  resume(){ if(this.ctx&&this.ctx.state==='suspended') this.ctx.resume(); },
+  tone(f,s,d,type='square',v=1){ if(!this.ctx) return;
+    const o=this.ctx.createOscillator(),g=this.ctx.createGain(); o.type=type; o.frequency.value=f;
+    const t=this.ctx.currentTime+s; g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(v,t+0.012); g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t+d+0.03); },
+  noise(s,d,v=0.5){ if(!this.ctx) return;
+    const len=Math.floor(this.ctx.sampleRate*d); const buf=this.ctx.createBuffer(1,len,this.ctx.sampleRate);
+    const dt=buf.getChannelData(0); for(let i=0;i<len;i++) dt[i]=(Math.random()*2-1)*(1-i/len);
+    const src=this.ctx.createBufferSource(); src.buffer=buf; const g=this.ctx.createGain(); g.gain.value=v;
+    src.connect(g); g.connect(this.master); src.start(this.ctx.currentTime+s); },
+  se(n){ if(!this.on||!this.ctx) return; this.resume();
+    switch(n){
+      case 'select': this.tone(880,0,0.07,'square',.5); break;
+      case 'hit': this.noise(0,0.12,.5); this.tone(180,0,0.1,'sawtooth',.4); break;
+      case 'damage': this.tone(150,0,0.18,'square',.6); this.tone(110,0.05,0.16,'square',.5); break;
+      case 'heal': [523,659,784].forEach((f,i)=>this.tone(f,i*0.07,0.2,'sine',.5)); break;
+      case 'flame': this.noise(0,0.25,.4); [440,330,220].forEach((f,i)=>this.tone(f,i*0.05,0.2,'sawtooth',.4)); break;
+      case 'win': [523,659,784,1047].forEach((f,i)=>this.tone(f,i*0.12,0.3,'square',.5)); break;
+      case 'levelup': // ドラクエ風 誇らしげなファンファーレ
+        [[523,0],[523,0.08],[523,0.16],[523,0.24],[659,0.34],[784,0.46],[1047,0.58]].forEach(([f,t])=>this.tone(f,t,0.3,'square',.5));
+        this.tone(392,0.34,0.5,'triangle',.3); this.tone(523,0.58,0.6,'triangle',.3); break;
+      case 'defeat': // 全滅 沈んだ下降和音
+        [[330,0],[294,0.22],[262,0.44],[196,0.7]].forEach(([f,t])=>{ this.tone(f,t,0.5,'triangle',.45); this.tone(f/2,t,0.5,'square',.25); }); break;
+      case 'encounter': [660,440,330,220].forEach((f,i)=>this.tone(f,i*0.06,0.13,'sawtooth',.5)); break;
+      case 'coin': this.tone(988,0,0.06,'square',.4); this.tone(1319,0.06,0.12,'square',.4); break;
+      case 'warp': [330,440,550,660].forEach((f,i)=>this.tone(f,i*0.05,0.1,'sine',.4)); break;
+      case 'chest': [659,784,988,1319].forEach((f,i)=>this.tone(f,i*0.08,0.18,'square',.45)); break;
+      case 'miss': this.tone(200,0,0.12,'square',.3); break;
+    } },
+  bgm(name){ if(this.cur===name&&this.bgmTimer) return; this.stopBgm(); this.cur=name;
+    if(!this.on||!this.ctx) return; this.resume();
+    // 全曲マルチパート（メロディ矩形波＋ベース三角波＋ドラム）。0=休符
+    // 場所別はパブリックドメインの交響曲をファミコン風に編曲
+    const multi={
+      title:{ tempo:260, melodyType:'square', bassType:'triangle', // 序曲風オリジナル（ファンファーレ→堂々テーマ→展開→締め）
+        melody:[262,0,330,392,523,0,659,0,784,0,659,523,392,0,0,0,523,0,523,587,659,0,587,523,440,0,523,0,392,0,0,0,698,0,659,587,523,0,587,659,587,0,392,440,494,0,0,0,392,494,587,784,523,0,659,523,523,0,0,0,523,0,0,0],
+        bass:[65,65,65,65,98,98,98,98,65,65,65,65,98,98,98,98,65,65,65,65,110,110,110,110,87,87,87,87,98,98,98,98,87,87,87,87,98,98,98,98,82,82,82,82,110,110,110,110,98,98,98,98,98,98,98,98,65,65,65,65,65,65,65,65],
+        drum:['0','0','0','0','0','0','0','0','0','0','0','0','k','0','k','0','k','0','h','0','k','0','h','0','k','0','h','0','k','0','h','0','k','0','h','0','k','0','h','0','k','0','h','0','k','0','h','0','k','0','k','0','k','0','k','s','k','0','k','0','k','s','k','s'] },
+      field:{ tempo:300, melodyType:'square', bassType:'triangle', // 田園
+        melody:[262,294,330,262,330,349,392,0,392,440,392,349,330,0,262,0,330,349,392,330,392,440,494,0,523,494,440,392,349,330,294,262],
+        bass:[65,65,98,98,65,65,98,98,65,65,87,87,65,65,98,98,65,65,98,98,65,65,87,87,65,65,98,98,65,65,98,65],
+        drum:['k','0','h','0','k','0','h','0','k','0','h','0','k','0','h','0','k','0','h','0','k','0','h','0','k','0','h','0','k','0','h','0'] },
+      town:{ tempo:440, melodyType:'square', bassType:'triangle', // 新世界より 家路
+        melody:[330,392,392,330,294,262,294,330,392,0,330,294,0,0,294,0,330,392,392,440,392,330,294,262,294,330,294,262,294,0,262,0],
+        bass:[65,65,65,65,98,98,65,65,65,65,98,98,98,98,98,98,65,65,65,65,65,65,98,98,98,98,65,65,98,98,65,65],
+        drum:['k','0','h','0','k','0','h','0','k','0','h','0','k','0','h','0','k','0','h','0','k','0','h','0','k','0','h','0','k','0','h','0'] },
+      castle:{ tempo:360, melodyType:'square', bassType:'triangle', // 威風堂々
+        melody:[392,0,440,494,0,587,0,494,440,0,392,440,494,0,440,392,392,0,440,494,0,587,659,587,494,0,440,392,370,0,392,0],
+        bass:[98,98,73,73,98,98,73,73,65,65,98,98,73,73,98,98,98,98,73,73,98,98,65,65,73,73,73,73,98,98,98,98],
+        drum:['0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0'] },
+      cave:{ tempo:330, melodyType:'square', bassType:'triangle', // トッカータとフーガ
+        melody:[440,392,440,0,0,392,349,330,294,330,0,0,220,0,0,0,440,392,440,0,523,494,440,392,349,0,330,0,294,0,0,0],
+        bass:[55,55,55,55,55,55,55,55,73,73,73,73,55,55,55,55,55,55,55,55,87,87,65,65,73,73,82,82,55,55,55,55],
+        drum:['0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0'] },
+      tower:{ tempo:240, melodyType:'square', bassType:'triangle', // 山の魔王の宮殿にて
+        melody:[294,330,349,392,440,349,440,0,415,330,415,0,440,349,440,587,294,330,349,392,440,349,440,0,440,466,440,392,349,0,294,0],
+        bass:[73,73,73,73,73,73,73,73,78,78,78,78,73,73,73,73,73,73,73,73,73,73,73,73,110,110,110,110,73,73,73,73],
+        drum:['k','s','k','s','k','s','k','s','k','s','k','s','k','s','k','s','k','s','k','s','k','s','k','s','k','s','k','s','k','s','k','s'] },
+      battle:{ tempo:140, melodyType:'square', bassType:'triangle', // 通常戦闘（疾走）
+        melody:[ 659,0,659,784, 880,0,784,659, 587,0,659,587, 523,0,494,440,
+                 659,0,659,784, 880,988,1047,880, 784,659,587,659, 523,0,0,0 ],
+        bass:[   220,220,165,165, 196,196,147,147, 175,175,131,131, 165,165,110,110,
+                 220,220,165,165, 196,196,147,147, 175,175,196,196, 220,0,220,0 ],
+        drum:[   'k','h','s','h', 'k','h','s','h', 'k','h','s','h', 'k','h','s','h',
+                 'k','h','s','h', 'k','h','s','h', 'k','h','s','h', 'k','s','k','s' ] },
+      boss:{ tempo:155, melodyType:'square', bassType:'triangle', // ボス戦（勇壮）
+        melody:[ 392,0,392,0, 466,0,440,0, 392,0,349,392, 311,0,0,0,
+                 392,0,466,0, 587,0,523,466, 440,466,523,587, 466,0,392,0 ],
+        bass:[   98,98,98,98, 117,117,110,110, 98,98,87,87, 78,78,78,78,
+                 98,98,98,98, 117,117,131,131, 110,110,131,131, 117,117,98,98 ],
+        drum:[   'k','0','k','s', 'k','0','k','s', 'k','0','k','s', 'k','s','k','s',
+                 'k','0','k','s', 'k','0','k','s', 'k','h','k','h', 'k','s','k','s' ] },
+      // 第二形態専用（おどろおどろしく速い・低音と半音でせまる狂気）
+      garzos2:{ tempo:125, melodyType:'sawtooth', bassType:'triangle',
+        melody:[ 311,330,311,0, 277,294,277,0, 311,0,415,392, 370,349,330,0,
+                 311,330,349,0, 415,440,466,415, 392,370,349,330, 311,0,277,0,
+                 466,0,440,466, 523,0,494,466, 440,415,392,440, 466,494,523,0,
+                 311,330,311,277, 294,311,330,349, 370,392,415,440, 466,440,415,392 ],
+        bass:[   78,78,82,82, 73,73,69,69, 78,78,82,82, 87,87,82,82,
+                 78,78,82,82, 87,87,93,93, 82,82,87,87, 78,78,73,73,
+                 117,117,110,110, 131,131,123,123, 110,110,104,104, 117,117,131,131,
+                 78,78,82,82, 87,87,93,93, 98,98,104,104, 117,110,104,98 ],
+        drum:[   'k','h','k','s', 'k','h','k','s', 'k','h','k','s', 'k','s','k','s',
+                 'k','h','k','s', 'k','h','k','s', 'k','h','k','s', 'k','s','s','s',
+                 'k','s','k','s', 'k','s','k','s', 'k','s','k','s', 'k','s','k','s',
+                 'k','h','k','h', 'k','h','k','h', 'k','s','k','s', 'k','s','s','s' ] },
+      // エルフ国（しずかで もの哀しい・グリーンスリーブス風オリジナル）
+      // エルフ国 / 世界樹のテーマ（ゆったり神秘的・浮遊感のあるオリジナル）
+      elf:{ tempo:520, melodyType:'triangle', bassType:'triangle',
+        melody:[ 587,0,0,659, 698,0,0,659, 587,0,523,0, 494,0,0,0,
+                 523,0,0,587, 659,0,0,587, 523,0,440,0, 392,0,0,0,
+                 698,0,0,784, 880,0,0,784, 698,0,659,0, 587,0,0,0,
+                 659,0,587,0, 523,0,494,0, 440,0,494,0, 587,0,0,0 ],
+        bass:[   147,0,0,0, 147,0,0,0, 110,0,0,0, 110,0,0,0,
+                 131,0,0,0, 131,0,0,0, 98,0,0,0, 98,0,0,0,
+                 175,0,0,0, 165,0,0,0, 147,0,0,0, 147,0,0,0,
+                 131,0,0,0, 110,0,0,0, 117,0,0,0, 147,0,0,0 ],
+        drum:[   '0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0',
+                 '0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0',
+                 '0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0',
+                 '0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0' ] },
+      // エンディング（荘厳で感動的なオリジナル・スタッフロール用）
+      ending:{ tempo:420, melodyType:'square', bassType:'triangle',
+        melody:[ 392,392,440,494, 523,523,494,440, 392,440,494,392, 440,0,0,0,
+                 392,392,440,494, 523,523,587,523, 494,440,392,440, 392,0,0,0,
+                 523,523,587,659, 587,523,494,440, 392,440,494,523, 440,0,0,0,
+                 659,587,523,494, 440,494,523,587, 523,494,440,392, 440,0,392,0 ],
+        bass:[   131,131,131,131, 165,165,165,165, 98,98,98,98, 147,147,147,147,
+                 131,131,131,131, 165,165,165,165, 110,110,110,110, 98,98,98,98,
+                 131,131,131,131, 110,110,110,110, 98,98,98,98, 147,147,147,147,
+                 165,165,165,165, 147,147,147,147, 131,131,110,110, 98,98,98,98 ],
+        drum:[   'k','0','0','0','k','0','0','0','k','0','0','0','k','0','s','0',
+                 'k','0','0','0','k','0','0','0','k','0','0','0','k','0','s','0',
+                 'k','0','0','0','k','0','0','0','k','0','0','0','k','0','s','0',
+                 'k','0','0','0','k','0','0','0','k','0','s','0','k','s','k','s' ] },
+    };
+    if(multi[name]){ this.playMulti(name, multi[name]); return; }
+  },
+  // マルチパート（メロディ＋ベース＋ドラム）再生
+  playMulti(name, s){ let i=0; const dur=s.tempo/1000;
+    const step=()=>{ if(!this.on||this.cur!==name) return;
+      const k=i%s.melody.length;
+      const mf=s.melody[k];
+      if(mf>0){ this.tone(mf,0,dur*0.85,s.melodyType,.28); this.tone(mf,0.004,dur*0.85,s.melodyType,.12); } // 軽いデチューンで厚み
+      const bf=s.bass[k];
+      if(bf>0) this.tone(bf,0,dur*0.92,s.bassType,.32);
+      const d=s.drum[k];
+      if(d==='k'){ this.tone(110,0,0.09,'square',.5); this.noise(0,0.05,.25); }
+      else if(d==='s'){ this.noise(0,0.12,.4); this.tone(200,0,0.06,'square',.2); }
+      else if(d==='h'){ this.noise(0,0.04,.18); }
+      i++; };
+    step(); this.bgmTimer=setInterval(step,s.tempo); },
+  stopBgm(){ if(this.bgmTimer){ clearInterval(this.bgmTimer); this.bgmTimer=null; } this.cur=null; },
+  toggle(){ this.on=!this.on; if(!this.on) this.stopBgm(); return this.on; },
+};
+
+/* ========================================================================= */
+const game = {
+  p:null, mode:'title', enemy:null,
+  msgQueue:[], msgAfter:null, _typing:false, _typeFull:'', msgDelay:16, msgSpeed:'normal',
+  cmdItems:[], cmdSel:0, cmdCtx:'', frame:0,
+
+  // タップ即応ヘルパー（touch/click二重発火を防止）
+  tap(el,fn){ if(!el) return; let handled=false;
+    el.addEventListener('touchend',e=>{ if(e.cancelable) e.preventDefault(); handled=true; fn(); setTimeout(()=>handled=false,400); },{passive:false});
+    el.addEventListener('click',()=>{ if(!handled) fn(); });
+  },
+  // 長押し（ms ミリ秒押し続けたら発動）。タップだけでは反応しない。スマホ/PC両対応
+  hold(el,ms,fn){ if(!el) return;
+    let timer=null;
+    const start=(e)=>{ if(e&&e.cancelable) e.preventDefault();
+      el.classList.add('holding');
+      clearTimeout(timer);
+      timer=setTimeout(()=>{ el.classList.remove('holding'); fn(); }, ms);
+    };
+    const cancel=()=>{ clearTimeout(timer); timer=null; el.classList.remove('holding'); };
+    el.addEventListener('touchstart',start,{passive:false});
+    el.addEventListener('touchend',cancel);
+    el.addEventListener('touchcancel',cancel);
+    el.addEventListener('touchmove',cancel);
+    el.addEventListener('mousedown',start);
+    el.addEventListener('mouseup',cancel);
+    el.addEventListener('mouseleave',cancel);
+  },
+
+  async init(){
+    const c=document.getElementById('view');
+    const w=document.getElementById('app').clientWidth||360;
+    this.tile=Math.floor(Math.min(VIEW*34, w)/VIEW);
+    c.width=this.tile*VIEW; c.height=this.tile*VIEW;
+    this.ctx=c.getContext('2d');
+    // タイトルメニュー（START / CONTINUE）
+    this.tap(document.getElementById('titleMenu').querySelector('[data-act="start"]'),()=>this.newGame());
+    this.tap(document.getElementById('contItem'),()=>this.continueGame());
+    // バージョン表示＆アップデート確認
+    const vt=document.getElementById('verText'); if(vt) vt.textContent='ver '+GAME_VERSION;
+    this.tap(document.getElementById('updateBtn'),()=>this.checkUpdate());
+    // メッセージ速度セレクタ
+    document.querySelectorAll('#speedRow .t-spd').forEach(el=>{
+      this.tap(el,()=>this.setMsgSpeed(el.dataset.spd));
+    });
+    this.hold(document.getElementById('devStartBtn'),5000,()=>this.devStart());
+    this.hold(document.getElementById('devStartBtn2'),5000,()=>this.devStart2());
+    try{ this.bindControls(); }catch(e){ console.error('bindControls失敗',e); }
+    // 保存済みのメッセージ速度を反映（なければnormal）
+    try{ const sp=await STORE.get(MSGSPD_KEY); this.applyMsgSpeed(sp&&sp.value?sp.value:'normal'); }
+    catch(e){ this.applyMsgSpeed('normal'); }
+    try{ const r=await STORE.get(SAVE_KEY);
+      if(r&&r.value){ const ci=document.getElementById('contItem'); ci.style.display='block'; ci.classList.add('sel'); }
+      else { document.querySelector('#titleMenu [data-act="start"]').classList.add('sel'); }
+    }catch(e){ document.querySelector('#titleMenu [data-act="start"]').classList.add('sel'); }
+    // タイトルBGM: 自動再生制限のため最初のタッチ/クリックで開始
+    const startTitleBgm=()=>{ audio.init(); audio.resume();
+      if(this.mode==='title') audio.bgm('title');
+      document.removeEventListener('pointerdown',startTitleBgm);
+      document.removeEventListener('touchstart',startTitleBgm);
+    };
+    document.addEventListener('pointerdown',startTitleBgm,{once:true});
+    document.addEventListener('touchstart',startTitleBgm,{once:true});
+  },
+
+  newGame(){ this.p=freshPlayer();
+    audio.init(); audio.resume(); audio.bgm(this.bgmFor());
+    document.getElementById('title').style.display='none';
+    this.enterField(); this.queueStory('intro');
+  },
+  // 隠しスタート: Lv10・パラディン・ブルトガング・仲間全員Lv10 で フィールドから開始
+  devStart(){
+    const p=freshPlayer();
+    this.p=p;
+    // 勇者を Lv10 まで成長（checkLevel と同じ増分）
+    while(p.lv<10){ p.lv++;
+      p.maxHp+=8; p.maxMp+=4; p.baseAtk+=1; p.baseDef+=1;
+      const l=LEARN[p.lv]; if(l&&!p.spells.includes(l)) p.spells.push(l);
+    }
+    p.hp=p.maxHp; p.mp=p.maxMp;
+    // パラディンへ転職（JOBS定義のボーナスを適用）
+    const j=JOBS.paladin;
+    p.job='paladin'; p.flags.jobChanged=true;
+    p.maxHp+=j.bonusHp; p.baseDef+=j.bonusDef; p.baseAtk+=j.bonusAtk;
+    if(j.learn && !p.spells.includes(j.learn)) p.spells.push(j.learn);
+    p.hp=p.maxHp; p.mp=p.maxMp;
+    // ブルトガングを装備（呪い・所持に追加）
+    if(!p.ownedGear.includes('balmung')) p.ownedGear.push('balmung');
+    p.equip.weapon='balmung'; p.flags.cursed=true;
+    // 仲間（せんし・けんじゃ）を Lv10 で加入
+    p.flags.joinWarrior=true; p.flags.joinSage=true;
+    this.joinAlly('warrior'); this.joinAlly('sage');
+    // 物語フラグも進めておく（鍵入手済み・王に会った扱い）
+    p.flags.metKing=true; p.flags.hasKey=true;
+    // フィールドへ
+    p.map='world'; p.x=10; p.y=4; p.dir='down';
+    audio.init(); audio.resume();
+    document.getElementById('title').style.display='none';
+    this.enterField(); audio.bgm(this.bgmFor());
+    this.message([
+      '【デバッグ スタート】',
+      'Lv10 パラディン・ブルトガングそうび。',
+      'せんし・けんじゃも Lv10で なかまに いる。',
+      'とくぎ「かちこち」「ちょうはつ」も つかえる。'
+    ]);
+  },
+  // 左の隠しスタート: ガルゾス撃破後・エルフ国に着いた状態から。Lv15・ブルトガング・仲間Lv15
+  devStart2(){
+    const p=freshPlayer();
+    this.p=p;
+    // 勇者を Lv15 まで成長
+    while(p.lv<15){ p.lv++;
+      p.maxHp+=8; p.maxMp+=4; p.baseAtk+=1; p.baseDef+=1;
+      const l=LEARN[p.lv]; if(l&&!p.spells.includes(l)) p.spells.push(l);
+    }
+    p.hp=p.maxHp; p.mp=p.maxMp;
+    // ブルトガング装備
+    if(!p.ownedGear.includes('balmung')) p.ownedGear.push('balmung');
+    p.equip.weapon='balmung'; p.flags.cursed=true;
+    // 仲間を Lv15 で加入
+    p.flags.joinWarrior=true; p.flags.joinSage=true;
+    this.joinAlly('warrior'); this.joinAlly('sage');
+    // 物語フラグ: ガルゾス撃破・エルフ受諾済み（塔20階の門が出る状態）
+    p.flags.metKing=true; p.flags.hasKey=true; p.flags.doorOpen=true;
+    p.flags.won=true; p.flags.elfQuest=true;
+    p.flags.joinWarrior=true; p.flags.joinSage=true;
+    // エルフ国に着いた状態でスタート（世界樹の前）
+    if(p.towerReturn){ p.elfReturnWorld={x:p.towerReturn.x,y:p.towerReturn.y}; }
+    p.map='elf'; p.x=6; p.y=7; p.dir='up';   // 世界樹の すぐ前
+    audio.init(); audio.resume();
+    document.getElementById('title').style.display='none';
+    this.enterField(); audio.bgm(this.bgmFor());
+    this.message([
+      '【デバッグ スタート：エルフのくに】',
+      'ガルゾス撃破ご、エルフのくに とうちゃく じてん。',
+      'Lv15 ゆうしゃ・ブルトガングそうび、せんし・けんじゃも Lv15。',
+      'しんでんで 2じしょく、まち・さとで エルフの そうびが かえる。',
+      'ねもとの どうくつで かぎ→とびら→ボス の じゅんに すすもう。'
+    ]);
+  },
+  // 読み込んだセーブに、最新版で追加された項目が欠けていたら初期値で補完する。
+  // これにより古いセーブでも未定義フラグによる不具合を避けて「極力動く」ようにする。
+  migrateSave(saved){
+    const def=freshPlayer();
+    // オブジェクトを再帰的に補完：savedに無いキーはdefから補う。
+    // 配列やプリミティブはsavedの値を尊重（プレイ進捗を壊さない）。
+    const fill=(d,s)=>{
+      if(Array.isArray(d)) return Array.isArray(s)?s:d.slice();
+      if(d && typeof d==='object'){
+        const out = (s && typeof s==='object' && !Array.isArray(s)) ? s : {};
+        for(const k in d){
+          if(out[k]===undefined) out[k]= (d[k]&&typeof d[k]==='object'&&!Array.isArray(d[k])) ? JSON.parse(JSON.stringify(d[k])) : d[k];
+          else out[k]=fill(d[k], out[k]);
+        }
+        return out;
+      }
+      return (s===undefined)?d:s;   // プリミティブはセーブ値優先、無ければ初期値
+    };
+    return fill(def, saved);
+  },
+  // アップデート確認：サーバーの version.json を読み、手元より新しければシークバー演出→再読み込み
+  async checkUpdate(){
+    const msg=document.getElementById('updateMsg');
+    const bar=document.getElementById('updateBar');
+    const fill=document.getElementById('updateBarFill');
+    const btn=document.getElementById('updateBtn');
+    const setMsg=t=>{ if(msg) msg.textContent=t; };
+    // 数字比較用（"1.2.3" を比べる）
+    const cmp=(a,b)=>{ const pa=String(a).split('.').map(Number), pb=String(b).split('.').map(Number);
+      for(let i=0;i<Math.max(pa.length,pb.length);i++){ const x=pa[i]||0,y=pb[i]||0; if(x!==y) return x<y?-1:1; } return 0; };
+    setMsg('かくにん ちゅう…');
+    let latest=null;
+    try{
+      const res=await fetch('version.json?_='+Date.now(), {cache:'no-store'});
+      if(!res.ok) throw new Error('http '+res.status);
+      const data=await res.json();
+      latest=String(data.version||'').trim();
+    }catch(e){
+      setMsg('かくにん できませんでした（オフライン／ファイルを ちょくせつ ひらいている ばあいは できません）');
+      return;
+    }
+    if(!latest){ setMsg('バージョンじょうほうが よめません'); return; }
+    if(cmp(GAME_VERSION, latest)>=0){
+      setMsg('さいしんばんです（ver '+GAME_VERSION+'）');
+      return;
+    }
+    // 新しい版がある → シークバー演出してから再読み込み
+    setMsg('あたらしい ばん ver '+latest+' が あります！ こうしん します…');
+    if(btn) btn.style.pointerEvents='none';
+    bar.classList.add('show');
+    fill.style.width='0';
+    let p=0;
+    const step=()=>{ p+=Math.random()*16+6; if(p>100)p=100; fill.style.width=p+'%';
+      if(p<100){ setTimeout(step, 120); }
+      else { setTimeout(()=>{ setMsg('こうしん かんりょう！ さいよみこみ します。');
+        // キャッシュを避けて最新を取得
+        setTimeout(()=>location.reload(true), 500);
+      }, 300); } };
+    step();
+  },
+  async continueGame(){    try{ const r=await STORE.get(SAVE_KEY);
+      const saved=JSON.parse(r.value);
+      this.p=this.migrateSave(saved);     // 新項目を初期値で補完してから採用
+      audio.init(); audio.resume(); audio.bgm(this.bgmFor());
+      document.getElementById('title').style.display='none';
+      this.enterField(); this.toast('ぼうけんの しょ から さいかい');
+    }catch(e){ this.toast('しょが よめない…'); }
+  },
+  async save(notify){ try{ await STORE.set(SAVE_KEY,JSON.stringify(this.p));      if(notify) this.message(['ぼうけんの しょに きろくした。']);
+    }catch(e){ if(notify) this.message(['きろくに しっぱいした…']); } },
+
+  // メッセージ送り速度（slow/normal/fast）
+  applyMsgSpeed(spd){
+    this.msgSpeed=spd;
+    this.msgDelay = spd==='slow'?40 : spd==='fast'?4 : 16;
+    document.querySelectorAll('#speedRow .t-spd').forEach(el=>{
+      el.classList.toggle('sel', el.dataset.spd===spd);
+    });
+  },
+  setMsgSpeed(spd){ this.applyMsgSpeed(spd); audio.se('select');
+    try{ STORE.set(MSGSPD_KEY, spd); }catch(e){}
+  },
+
+  // 現在のマップ（塔は動的生成、それ以外はMAPS）
+  curMap(){ return this.p.map==='tower' ? this.tower : MAPS[this.p.map]; },
+  bgmFor(){ const m=this.p.map;
+    if(m==='cave1'||m==='cave2') return 'cave';
+    if(m==='castle'||m==='jobcastle') return 'castle';
+    if(m==='town1'||m==='town2') return 'town';
+    if(m==='tower') return 'cave';
+    if(m==='elf') return 'elf';                          // 外フィールド＝世界樹テーマ
+    if(m==='elftown'||m==='elfvillage') return 'town';   // 町・村＝最初の国と同じ
+    if(m==='elfjob') return 'castle';                    // 神殿＝最初の国の城/転職と同じ
+    if(m==='elfcave') return 'cave';
+    return 'field';
+  },
+  // 現在地の表示名（塔は階数つき）
+  placeNameOf(map){ const m=map||this.p.map;
+    if(m==='tower') return `むげんの とう ${this.p.towerFloor||1}かい`;
+    return MAP_NAMES[m]||'';
+  },
+  setPlace(){ const el=document.getElementById('placeName');
+    if(el) el.textContent=this.placeNameOf();
+  },
+
+  enterField(){ this.mode='field';
+    document.getElementById('strip').classList.add('show');
+    document.getElementById('pad').classList.add('show');
+    document.getElementById('battle').classList.remove('show');
+    document.getElementById('shop').classList.remove('show');
+    this.draw(); this.updateStrip(); this.setPlace();
+  },
+
+  bindControls(){
+    // 十字キー: dpad領域全体を1つのタッチ面として扱い、タッチ位置から方向を判定する。
+    // 個別ボタンより判定が広く、隙間や少し外れた位置でも反応する（参考: 仮想ゲームパッドの考え方）
+    const dpad=document.querySelector('.dpad');
+    if(dpad){
+      // タッチ座標→方向（中心からの相対位置。斜めゾーンも判定）
+      const dirFromPoint=(clientX,clientY)=>{
+        const r=dpad.getBoundingClientRect();
+        const cx=r.left+r.width/2, cy=r.top+r.height/2;
+        let dx=clientX-cx, dy=clientY-cy;
+        const dead=r.width*0.12;                 // 中心の小さな不感帯
+        if(Math.abs(dx)<dead && Math.abs(dy)<dead) return null;
+        // 縦横どちらが優勢か。差が小さければ斜め扱い
+        const ax=Math.abs(dx), ay=Math.abs(dy);
+        const diagRatio=0.42;                    // この比率以内なら斜め
+        const hor = dx>0?'right':'left';
+        const ver = dy>0?'down':'up';
+        if(ax>ay){ return (ay/ax>diagRatio) ? [hor,ver] : [hor]; }
+        else      { return (ax/ay>diagRatio) ? [ver,hor] : [ver]; }
+      };
+      const lightUp=(dirs)=>{
+        dpad.querySelectorAll('.dbtn[data-dir]').forEach(b=>{
+          b.classList.toggle('pressed', !!dirs && dirs.includes(b.dataset.dir));
+        });
+      };
+      const moveDirs=(dirs)=>{
+        if(!dirs||!dirs.length) return;
+        // グリッド移動：1つ目の方向を試し、ダメなら2つ目（斜め時の素直な処理）
+        const before={x:this.p.x,y:this.p.y};
+        this.tryMove(dirs[0]);
+        if(dirs[1] && this.p.x===before.x && this.p.y===before.y) this.tryMove(dirs[1]);
+      };
+      let curDirs=null;
+      const start=(cx,cy,e)=>{ if(e&&e.cancelable) e.preventDefault();
+        const d=dirFromPoint(cx,cy); curDirs=d; lightUp(d);
+        clearInterval(this.holdTimer);
+        moveDirs(d);
+        this.holdTimer=setInterval(()=>moveDirs(curDirs),170);
+      };
+      const move=(cx,cy,e)=>{ if(curDirs===null && !this._padDown) return;
+        if(e&&e.cancelable) e.preventDefault();
+        const d=dirFromPoint(cx,cy); curDirs=d; lightUp(d);
+      };
+      const end=(e)=>{ if(e&&e.cancelable) e.preventDefault();
+        curDirs=null; this._padDown=false; lightUp(null); clearInterval(this.holdTimer);
+      };
+      if('ontouchstart' in window){
+        dpad.addEventListener('touchstart',e=>{ this._padDown=true; const t=e.touches[0]; start(t.clientX,t.clientY,e); },{passive:false});
+        dpad.addEventListener('touchmove',e=>{ const t=e.touches[0]; if(t) move(t.clientX,t.clientY,e); },{passive:false});
+        dpad.addEventListener('touchend',end); dpad.addEventListener('touchcancel',end);
+      } else {
+        dpad.addEventListener('pointerdown',e=>{ this._padDown=true; start(e.clientX,e.clientY,e); });
+        dpad.addEventListener('pointermove',e=>{ if(this._padDown) move(e.clientX,e.clientY,e); });
+        dpad.addEventListener('pointerup',end); dpad.addEventListener('pointerleave',end); dpad.addEventListener('pointercancel',end);
+      }
+    }
+    // ボタン: タップ即応（this.tap で二重発火防止）
+    this.tap(document.getElementById('btnA'),()=>this.pressA());
+    this.tap(document.getElementById('btnMenu'),()=>this.pressMenu());
+    this.tap(document.getElementById('muteBtn'),()=>{
+      const on=audio.toggle(); document.getElementById('muteBtn').textContent=on?'🔊':'🔇';
+      if(on){ audio.init(); audio.resume(); audio.bgm(this.mode==='battle'?(this.isBossBattle?'boss':'battle'):this.bgmFor()); }
+    });
+    this.tap(document.getElementById('msgBox'),()=>this.advanceMsg());
+    this.tap(document.getElementById('bMsg'),()=>this.advanceMsg());
+    this.tap(document.getElementById('bAuto'),()=>this.toggleAuto());
+    window.addEventListener('keydown',e=>{
+      const k={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'}[e.key];
+      if(k){ e.preventDefault(); this.tryMove(k); }
+      else if(e.key==='Enter'||e.key===' '){ e.preventDefault(); this.pressA(); }
+      else if(e.key==='Shift') this.pressMenu();
+    });
+  },
+
+  pressA(){
+    if(this.msgQueue.length||this._typing){ this.advanceMsg(); return; }
+    if(this.cmdCtx==='field'){ this.confirmCmd(); return; }
+    if(this.mode==='battle'){ this.battleA(); return; }
+    if(this.mode==='field') this.interact();
+  },
+  pressMenu(){ if(this.mode!=='field'||this.msgQueue.length) return; this.openFieldMenu(); },
+
+  tryMove(dir){
+    if(this.mode!=='field'||this.msgQueue.length||this.cmdCtx) return;
+    const p=this.p; p.dir=dir;
+    const d={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[dir];
+    const nx=p.x+d[0], ny=p.y+d[1], m=this.curMap();
+    if(ny<0||ny>=m.rows.length||nx<0||nx>=m.rows[0].length) return;
+    const t=m.rows[ny][nx];
+    if(t==='D' && !this.doorIsOpen()){ this.draw(); return; }
+    if(t!=='D' && SOLID.has(t)){ this.draw(); return; }
+    p.x=nx; p.y=ny; this.frame^=1; this.draw();
+    // 塔の宝箱→踏んだら開ける（素通りもできる。取得後はただの床）
+    if(p.map==='tower' && t==='C' && !(this.tower.opened&&this.tower.opened[nx+','+ny])){
+      this.openTowerChest(nx,ny); return;
+    }
+    // 通常マップの宝箱→踏んだら開ける（封印箱は除く＝開かないが素通りはできる）
+    const stepChest=CHESTS.find(c=>c.map===p.map&&c.x===nx&&c.y===ny);
+    if(stepChest && !this.p.chests.includes(stepChest.id)
+       && !(stepChest.locked && this.p.flags.excaliburStage<3)){
+      this.openChest(stepChest); return;
+    }
+    // エルフ国：世界樹の根の鍵に乗ったら取得（けっていを押さなくてよい）
+    if(p.map==='elfcave' && nx===11 && ny===5 && !p.flags.elfHasKey){
+      this.elfKeyTalk(); return;
+    }
+    const w=WARPS.find(w=>w.map===p.map&&w.x===nx&&w.y===ny);
+    if(w){
+      if(t==='>') this.promptWarp(w);   // 階段だけ「すすむ/まだ」を聞く
+      else this.doWarp(w);              // 村・町・城・洞窟の出入りは乗ったら即入場
+      return;
+    }
+    // エルフ国：世界樹の前に出現する「帰還の扉」(6,8)→もとの国の橋の中央へ
+    if(p.map==='elf' && p.flags.elfReturnDoor && nx===6 && ny===8){
+      this.returnToWorldFromElf(); return;
+    }
+    // エルフ国の外フィールドの出口（,）: クリア後のみ もとの せかいへ戻れる
+    if(p.map==='elf' && t===','){
+      if(p.flags.elfCleared){
+        this.message(['ひかりの もんが ひらいている。','もとの せかいへ もどりますか？'],()=>{
+          this.cmdCtx='field';
+          this.cmdItems=[
+            {label:'もどる',act:()=>{ this.closeCmd(); this.returnToWorldFromElf(); }},
+            {label:'まだ',act:()=>{ this.closeCmd(); }},
+          ]; this.cmdSel=0; this.renderCmd('cmdBox');
+        });
+      } else {
+        this.message(['ひかりの もんは とじている。','せかいじゅを すくわぬ かぎり、もとの せかいへは もどれない。']);
+      }
+      return;
+    }
+    // 橋中央の待機イベント（エクスカリバー）
+    if(p.map==='world' && t==='B'){ this.checkBridgeEvent();
+      if(this._bridgeTimer) return; // 計測中はエンカウントしない
+    }
+    if(p.map==='world'||p.map==='cave1'||p.map==='cave2'){
+      const rate = p.map==='world'?0.10:0.15;
+      if(Math.random()<rate) this.startBattle(this.pick(ENC_GROUPS[p.map]));
+    } else if(p.map==='elf'||p.map==='elfcave'){
+      const rate = p.map==='elf'?0.12:0.16;
+      if(Math.random()<rate) this.startBattle(this.pick(ENC_GROUPS[p.map]));
+    } else if(p.map==='tower'){
+      if(Math.random()<0.18) this.startBattle(this.towerEncounter());
+    }
+  },
+  // ボス撃破後の帰還：もとの国の橋の中央へ。王へ報告する独り言
+  returnToWorldFromElf(){ const p=this.p;
+    p.map='world'; p.x=10; p.y=9; p.dir='up';   // 橋(B)の中央
+    p.flags.backFromElf=true;
+    audio.se('warp');
+    this.enterField(); audio.bgm(this.bgmFor());
+    this.draw(); this.setPlace();
+    this.message([
+      'ひかりに つつまれ──',
+      'もとの せかい、はしの まんなかに もどってきた。',
+      'ゆうしゃ「…まずは おうさまに ほうこく しに いこう。」'
+    ]);
+  },
+  // エルフ国から もとの せかい（塔があった外フィールド）へ戻る
+  exitElf(){ const p=this.p;    p.map='world';
+    if(p.elfReturnWorld){ p.x=p.elfReturnWorld.x; p.y=p.elfReturnWorld.y; }
+    else { p.x=16; p.y=16; } // 念のため塔の近く
+    audio.se('warp'); audio.bgm(this.bgmFor());
+    this.draw(); this.setPlace();
+    this.message(['ひかりに つつまれ──','もとの せかいの フィールドに もどってきた。']);
+  },
+  // 階段を踏んだとき：自動で移らず「すすむ/まだ」を聞く（建物の出入りは確認なし）
+  promptWarp(w){
+    this.message(['かいだんが ある。','つぎへ すすみますか？'],()=>{
+      this.cmdCtx='field';
+      this.cmdItems=[
+        {label:'すすむ', act:()=>{ this.closeCmd(); this.doWarp(w); }},
+        {label:'まだ', act:()=>{ this.closeCmd(); }},
+      ]; this.cmdSel=0; this.renderCmd('cmdBox');
+    });
+  },
+  doWarp(w){ this.p.map=w.to.map; this.p.x=w.to.x; this.p.y=w.to.y; audio.se('warp');
+    audio.bgm(this.bgmFor());
+    this.draw(); this.setPlace();
+    if(w.to.map==='town1' && !this.p.flags.joinWarrior) this.queueStory('town1first');
+    if(w.to.map==='town2') this.queueStory('town2first');
+    if(w.to.map==='cave2') this.queueStory('cavedeep');
+  },
+
+  // 加入済み仲間など、フラグ条件で隠すNPCを除いた一覧
+  visibleNpcs(map){
+    return (NPCS[map]||[]).filter(n=>
+      !(n.hideIfFlag && this.p.flags[n.hideIfFlag]) &&
+      !(n.showIfFlag && !this.p.flags[n.showIfFlag]) &&
+      !(n.hideIfFlagOn && this.p.flags[n.hideIfFlagOn])
+    );
+  },
+  interact(){
+    const p=this.p, d={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[p.dir];
+    const fx=p.x+d[0], fy=p.y+d[1], m=this.curMap();
+    // 塔: 足元が階段なら次の階へ（踏んでも進まず、決定で進む）
+    if(p.map==='tower' && m.rows[p.y] && m.rows[p.y][p.x]==='>'){
+      this.message(['かいだんを みつけた。','つぎの かいへ すすみますか？'],()=>{
+        this.cmdCtx='field';
+        this.cmdItems=[
+          {label:'すすむ',act:()=>{ this.closeCmd(); this.towerNextFloor(); }},
+          {label:'まだ',act:()=>{ this.closeCmd(); }},
+        ]; this.cmdSel=0; this.renderCmd('cmdBox');
+      });
+      return;
+    }
+    // 足元がマップ切替タイルなら：階段は確認、建物の出入りは即ワープ
+    if(p.map!=='tower'){
+      const wHere=WARPS.find(w=>w.map===p.map&&w.x===p.x&&w.y===p.y);
+      if(wHere){
+        if(m.rows[p.y][p.x]==='>') this.promptWarp(wHere);
+        else this.doWarp(wHere);
+        return;
+      }
+    }
+    if(m.rows[fy]&&m.rows[fy][fx]==='D'){
+      if(p.map==='elfcave'){
+        if(p.flags.elfDoorOpen) this.message(['とびらは ひらいている。']);
+        else if(p.flags.elfHasKey){ p.flags.elfDoorOpen=true; this.draw(); this.message(['せかいじゅの かぎを つかった！','ねもとへの とびらが ひらいた。']); }
+        else this.message(['とびらに かぎが かかっている。','どうくつ おくの ふういんの まを さがそう。']);
+      } else {
+        if(p.flags.doorOpen) this.message(['とびらは ひらいている。']);
+        else if(p.flags.hasKey){ p.flags.doorOpen=true; this.draw(); this.message(['ましょうの しろの かぎを つかった！','とびらが ひらいた。']); }
+        else this.message(['かぎが かかっている。']);
+      }
+      return;
+    }
+    const chest=CHESTS.find(c=>c.map===p.map&&c.x===fx&&c.y===fy);
+    if(chest){ this.openChest(chest); return; }
+    // 塔の宝箱
+    if(p.map==='tower' && m.rows[fy] && m.rows[fy][fx]==='C'){ this.openTowerChest(fx,fy); return; }
+    // 塔の入口
+    if(p.map==='world' && m.rows[fy] && m.rows[fy][fx]==='O'){ this.enterTowerPrompt(); return; }
+    const npc=this.visibleNpcs(p.map).find(n=>n.x===fx&&n.y===fy);
+    if(npc){ this.talkTo(npc); return; }
+    this.message(['だれも いない。']);
+  },
+  // 現在マップの鍵扉Dが開いているか（エルフ国は別フラグ）
+  doorIsOpen(){ return this.p.map==='elfcave' ? this.p.flags.elfDoorOpen : this.p.flags.doorOpen; },
+  openChest(c){
+    if(this.p.chests.includes(c.id)){ this.message(['たからばこは からっぽだ。']); return; }
+    if(c.locked && this.p.flags.excaliburStage<3){ this.message(['ふしぎな ちからで ふうじられている…','どくろが なにか しっていそうだ。']); return; }
+    this.p.chests.push(c.id); audio.se('chest'); this.draw();
+    const g=c.give; let msg;
+    if(g.gold){ this.p.gold+=g.gold; msg=`たからばこを あけた！ ◈${g.gold}を てにいれた。`; }
+    else if(g.item==='twig'){ msg=`たからばこを あけた！ ひのきのぼうきれを てにいれた。`; this.giveTwig(); }
+    else { this.giveItem(g.item,g.n); msg=`たからばこを あけた！ ${ITEMS[g.item].name}を ${g.n}こ てにいれた。`; }
+    this.updateStrip(); this.message([msg]);
+  },
+
+  talkTo(npc){
+    if(npc.talk){ this.message(npc.talk); return; }
+    switch(npc.act){
+      case 'king': this.kingTalk(); break;
+      case 'sage': this.sageTalk(); break;
+      case 'warrior': this.warriorTalk(); break;
+      case 'shop_weapon1': this.openShop('weapon1'); break;
+      case 'shop_weapon2': this.openShop('weapon2'); break;
+      case 'shop_item': this.openShop('item'); break;
+      case 'shop_elfweapon': this.openShop('elfweapon'); break;
+      case 'shop_elfarmor': this.openShop('elfarmor'); break;
+      case 'shop_elfitem': this.openShop('elfitem'); break;
+      case 'inn': this.inn(npc.innCost||10); break;
+      case 'church': this.church(); break;
+      case 'boss': this.bossTalk(); break;
+      case 'skull': this.skullTalk(); break;
+      case 'jobmaster': this.jobMasterTalk(); break;
+      case 'slimejob': this.message([
+        'スライム「おいらも れんきんじゅつしの しゅぎょうを すれば…」',
+        'スライム「いつか にんげんに てんしょく できるんだって！」',
+        'スライム「ゆうしゃさん、おさきに どうぞ。」'
+      ]); break;
+      case 'questboard': this.questBoard(); break;
+      case 'worldtree': this.worldtreeTalk(); break;      case 'elfmaiden': this.elfMaidenTalk(); break;
+      case 'elfkey': this.elfKeyTalk(); break;
+      case 'elfboss': this.elfBossTalk(); break;
+      case 'princess': this.princessTalk(); break;
+    }
+  },
+  kingTalk(){ const p=this.p;
+    if(!p.flags.metKing){ p.flags.metKing=true; p.flags.hasKey=true;
+      this.message([
+        'アルディアおう「おお ゆうしゃ よ！」',
+        'ましょう ガルゾスが ひめ フィーナを さらい、せかいに やみを ひろげておる。',
+        'これは ましょうの しろの かぎ じゃ。さずけよう。',
+        'まちで そなえを ととのえ、ガルゾスを たおし ひめを すくうのだ！',
+        'アルディアおう「ガルゾスは きょうだい。ふつうの ちからでは とどかぬ。」',
+        'アルディアおう「みなみの 『てんしょくの しろ』で てんしょくを すれば、しんの ちからに めざめよう。」',
+        '（じょうを でて にしの まちへ。さらに みなみの むらも たずねよ）'
+      ]);
+    } else if(!p.flags.won){
+      if(!p.flags.jobChanged && p.lv>=10) this.message(['アルディアおう「レベルは じゅうぶん。みなみの てんしょくの しろへ いくのだ！」','アルディアおう「さもなくば ガルゾスには かてぬ ぞ。」']);
+      else this.message(['アルディアおう「ガルゾスを たおし、ひめを すくうのだ！」']);
+    }
+    else if(p.flags.elfCleared && p.flags.backFromElf && !p.flags.finalEnd){
+      this.finalCeremony();
+    }
+    else if(p.flags.finalEnd){
+      this.message(['アルディアおう「ゆうしゃ よ、そなたの たびに さちあれ。」']);
+    }
+    else this.message(['アルディアおう「よくぞ せかいを すくった、ゆうしゃ よ！」']);
+  },
+  // エルフ国クリア後、城での最終式典 → 縁結び → エンドロール
+  finalCeremony(){ const p=this.p;
+    p.flags.finalEnd=true;
+    audio.stopBgm();
+    this.message([
+      'アルディアおう「おお、ゆうしゃ よ！ エルフの くにも すくった と いうのか！」',
+      'アルディアおう「なんという ことだ…そなたは まことの えいゆうじゃ。」',
+      'フィーナ「ゆうしゃ さま、おかえりなさい。」',
+      'フィーナ「あなたの ぶじを、ずっと いのって いました。」',
+      'アルディアおう「フィーナ よ。」',
+      'アルディアおう「そなたが ゆうしゃの もとへ いきたい と のぞむなら──」',
+      'アルディアおう「ちちは それを とめは せぬ。いきなさい。」',
+      'フィーナ「…！ おとうさま…」',
+      'フィーナ「ゆうしゃ さま。わたくしは あなたと ならば、どこまでも いっしょですわ。…ぽっ」',
+      'ふたりは てを とりあった。あらたな ものがたりの はじまりである。',
+      'そして、でんせつが　はじまる',
+    ],()=>{ this.rollCredits(); });
+  },
+  // エンドロール：英文スタッフロールを流す
+  rollCredits(){
+    this.mode='credits';
+    document.getElementById('msgBox').classList.remove('show');
+    document.getElementById('strip').classList.remove('show');
+    document.getElementById('pad').classList.remove('show');
+    audio.init(); audio.resume(); audio.bgm('ending');
+    const roll=[
+      ['h1','ALDIA FANTASY'],
+      ['role','DIRECTOR'],['name','TRP'],
+      ['role','GAME DESIGN'],['name','TRP'],
+      ['role','SCENARIO'],['name','TRP'],
+      ['role','PROGRAMMING'],['name','Claude (Anthropic)'],
+      ['role','PIXEL ART & GRAPHICS'],['name','Claude Pixel Studio'],
+      ['role','MAP DESIGN'],['name','Aldia Cartography Team'],
+      ['role','MUSIC COMPOSED & ARRANGED'],['name','Chiptune Orchestra'],
+      ['role','SOUND EFFECTS'],['name','Web Audio Lab'],
+      ['role','BATTLE SYSTEM'],['name','Turn Engine Works'],
+      ['role','QUALITY ASSURANCE'],['name','TRP'],
+      ['role','TEST PLAYER'],['name','TAKAHASHI'],
+      ['role','SPECIAL THANKS'],['name','Princess Fiina'],['name','The Elf Queen'],['name','Warrior & Sage'],['name','All The Villagers'],['name','AND YOU'],
+      ['role','RUNS ON'],['name','HTML5 / JavaScript / Canvas'],
+      ['name','Thank you for playing!'],
+      ['name','Stay tuned for the next ALDIA FANTASY!'],
+    ];
+    const inner=document.getElementById('creditsInner');
+    inner.className='';
+    inner.innerHTML=roll.map(([c,t])=>`<div class="${c}">${t}</div>`).join('');
+    const cr=document.getElementById('credits');
+    cr.classList.add('show');
+    // エンドロール中はタップ/クリックを受け付けない
+    cr.onclick=(e)=>{ e.stopPropagation(); e.preventDefault(); };
+    // リフローを挟んでからアニメ開始
+    void inner.offsetWidth;
+    inner.classList.add('run');
+    // スクロール終了 → THE END を中央に固定表示
+    const onScrollEnd=()=>{ inner.removeEventListener('animationend',onScrollEnd);
+      // クレジットが流れきって画面が空になったあと、少し間をおいてからTHE END
+      inner.classList.remove('run');
+      inner.innerHTML='';
+      setTimeout(()=>this.showTheEnd(), 1400);
+    };
+    inner.addEventListener('animationend',onScrollEnd);
+  },
+  // THE END を画面中央にアニメ表示して固定。3秒後にタップでタイトルへ
+  showTheEnd(){
+    const cr=document.getElementById('credits');
+    const inner=document.getElementById('creditsInner');
+    inner.classList.remove('run');
+    inner.innerHTML='<div class="theend">THE END</div>';
+    inner.style.top='0'; inner.style.height='100%';
+    inner.style.display='flex'; inner.style.flexDirection='column';
+    inner.style.justifyContent='center'; inner.style.alignItems='center';
+    // 3秒たってからタップを受け付ける
+    let ready=false;
+    setTimeout(()=>{ ready=true;
+      const hint=document.createElement('div'); hint.className='endhint'; hint.textContent='タップで タイトルへ';
+      inner.appendChild(hint);
+    }, 3000);
+    cr.onclick=(e)=>{ e.stopPropagation(); e.preventDefault();
+      if(!ready) return;
+      cr.classList.remove('show'); audio.stopBgm(); this.save(); location.reload();
+    };
+  },
+  joinAlly(key){
+    if(this.p.party.includes(key)) return;
+    const a=ALLIES[key];
+    this.p.party.push(key);
+    // 加入時の状態を勇者Lvに合わせて初期化
+    const st={ lv:a.lv, maxHp:a.maxHp, maxMp:a.maxMp, atk:a.atk, def:a.def, spd:a.spd, spells:a.spells.slice() };
+    st.hp=st.maxHp; st.mp=st.maxMp;
+    while(st.lv<this.p.lv){ st.lv++; st.maxHp+=6; st.maxMp+=(a.maxMp>0?3:0); st.atk+=1; st.def+=1;
+      const learn=a.learn&&a.learn[st.lv]; if(learn&&!st.spells.includes(learn)) st.spells.push(learn); }
+    st.hp=st.maxHp; st.mp=st.maxMp;
+    this.p.allyState[key]=st;
+  },
+  sageTalk(){ const p=this.p;
+    if(!p.flags.joinSage){ p.flags.joinSage=true; this.joinAlly('sage');
+      this.message([
+        'けんじゃ「ガルゾスは ほのおの まほうを つかう。」',
+        'けんじゃ「わしも ともに たたかおう。なかまに くわえてくれ。」',
+        'けんじゃ が なかまに くわわった！',
+        'けんじゃ「みなみの ぶきやで りゅうの よろいを そろえると よい。」'
+      ],()=>{ this.updateStrip(); this.draw(); });
+    } else this.message(['けんじゃ「Lvを あげて ガルゾスに のぞむのじゃ。」']);
+  },
+  warriorTalk(){ const p=this.p;
+    if(!p.flags.joinWarrior){ p.flags.joinWarrior=true; this.joinAlly('warrior');
+      this.message([
+        'せんし「おまえが うわさの ゆうしゃか。」',
+        'せんし「おれも ガルゾスには うらみが ある。つれていってくれ！」',
+        'せんし が なかまに くわわった！'
+      ],()=>{ this.updateStrip(); this.draw(); });
+    } else this.message(['せんし「いつでも たたかう じゅんびは できてるぜ。」']);
+  },
+
+  // ===== 転職（城の導師）=====
+  jobMasterTalk(){ const p=this.p;
+    // こだいの しんでん（エルフ国）= 2次職（Lv15・1次職から派生）
+    if(this.p.map==='elfjob'){ this.elfJobMasterTalk(); return; }
+    if(p.flags.jobChanged){ this.message(['どうし「そなたは すでに てんしょく ずみじゃ。」']); return; }
+    if(p.lv<10){ this.message(['どうし「てんしょくには レベル10 いじょうが ひつよう。」',`どうし「いまは レベル${p.lv}。はげむのじゃ。」`]); return; }
+    this.message([
+      'どうし「ゆうしゃ よ。そなたは てんしょくの しかくを えた。」',
+      'どうし「どの みちを えらぶ？」'
+    ],()=>{
+      this.cmdCtx='field';
+      this.cmdItems=[
+        {label:'パラディン（まもり）',act:()=>this.doJobChange('paladin')},
+        {label:'ようしゃ（こうげき）',act:()=>this.doJobChange('hero_k')},
+        {label:'やめる',act:()=>{ this.closeCmd(); this.message(['どうし「まよいが あるなら また こい。」']); }},
+      ]; this.cmdSel=0; this.renderCmd('cmdBox');
+    });
+  },
+  // エルフ国・こだいの しんでん：2次職（Lv15・パラディン/ようしゃ から）
+  elfJobMasterTalk(){ const p=this.p;
+    if(p.flags.jobChanged2){ this.message(['せいれい「そなたは すでに きわめし もの。」']); return; }
+    if(p.lv<10){ this.message(['せいれい「こだいの ちからを あつかうには レベル10 いじょうが ひつよう。」',`せいれい「いまは レベル${p.lv}。さらに はげむのじゃ。」`]); return; }
+    // 1次職を選ぶための共通メニュー（派生先も提示）
+    const askPath=(prompt)=>{
+      this.message(prompt,()=>{
+        this.cmdCtx='field';
+        this.cmdItems=[
+          {label:'まもりの みち（→ジェネラル）',act:()=>this.elfChooseJob('paladin')},
+          {label:'こうげきの みち（→バーサーカー）',act:()=>this.elfChooseJob('hero_k')},
+          {label:'やめる',act:()=>{ this.closeCmd(); this.message(['せいれい「こころが きまったら また おいで。」']); }},
+        ]; this.cmdSel=0; this.renderCmd('cmdBox');
+      });
+    };
+    // (A) 1次職済み・Lv15 → そのまま2次職へ
+    if(p.flags.jobChanged && p.lv>=15){
+      const next=(p.job==='paladin')?'general':(p.job==='hero_k'?'berserker':null);
+      if(!next){ this.message(['せいれい「そなたの みちは ここには ない。」']); return; }
+      const nj=JOBS[next];
+      this.message([
+        'せいれい「こだいの ちからが そなたに こたえる。」',
+        `せいれい「${JOBS[p.job].name} の さきへ──「${nj.name}」へ いたる みちが ある。」`,
+        `せいれい「${nj.desc}」`,
+        'すすむか？'
+      ],()=>{
+        this.cmdCtx='field';
+        this.cmdItems=[
+          {label:`${nj.name}に なる`,act:()=>this.doJobChange(next,true)},
+          {label:'やめる',act:()=>{ this.closeCmd(); this.message(['せいれい「こころが きまったら また おいで。」']); }},
+        ]; this.cmdSel=0; this.renderCmd('cmdBox');
+      });
+      return;
+    }
+    // (B) 1次職済み・Lv10〜14 → 2次職にはLv15が必要
+    if(p.flags.jobChanged){
+      this.message(['せいれい「そなたは すでに みちを えらんで おるな。」',`せいれい「2じしょくには レベル15 いじょうが ひつよう。いまは レベル${p.lv}。」`,'せいれい「ちからを つけて また おいで。」']);
+      return;
+    }
+    // (C) 1次職未習得・Lv15以上 → 救済：1次職と2次職を一気に開花
+    if(!p.flags.jobChanged && p.lv>=15){
+      askPath([
+        'せいれい「ほう…そなた、まだ みちを えらんで おらぬな。」',
+        'せいれい「あんじるな。こだいの ちからが、いっきに みちを ひらいて くれよう。」',
+        'せいれい「どの みちを えらぶ？」'
+      ]);
+      return;
+    }
+    // (D) 1次職未習得・Lv10〜14 → 救済：まず1次職だけ授ける
+    askPath([
+      'せいれい「そなた、まだ ふるさとで みちを えらんで おらぬな。」',
+      'せいれい「よかろう。ここで みちを さずけよう。」',
+      `せいれい「2じしょくには レベル15が ひつよう。いまは レベル${p.lv} ゆえ、まずは いちじしょく を。」`,
+      'せいれい「どの みちを えらぶ？」'
+    ]);
+  },
+  // エルフ神殿で道を選んだとき：Lv15以上なら1次+2次を一気に、未満なら1次職だけ
+  elfChooseJob(firstJob){
+    const p=this.p;
+    this.closeCmd();
+    if(p.lv>=15){
+      const second=(firstJob==='paladin')?'general':'berserker';
+      // 1次職→2次職を連続適用
+      this.applyJob(firstJob,false);
+      this.applyJob(second,true);
+      const j1=JOBS[firstJob], j2=JOBS[second];
+      const lines=[
+        'こだいの ちからが あふれだす！',
+        `ゆうしゃは ${j1.name}を へて 「${j2.name}」へ いたった！`,
+      ];
+      if(j2.trait==='cover') lines.push('せんとうちゅう、ひんしの なかまを じどうで かばう ように なった！');
+      if(j2.trait==='fury') lines.push('HPが ひくいほど あたえる ダメージが あがる ように なった！');
+      audio.se('levelup'); this.updateStrip();
+      this.message(lines);
+    } else {
+      this.doJobChange(firstJob,false);
+    }
+  },
+  // 職業ボーナスを適用するだけの内部関数（メッセージは出さない）
+  applyJob(job,second){
+    const p=this.p, j=JOBS[job];
+    p.job=job;
+    if(second) p.flags.jobChanged2=true; else p.flags.jobChanged=true;
+    p.maxHp+=j.bonusHp; p.baseDef+=j.bonusDef; p.baseAtk+=j.bonusAtk; p.hp=p.maxHp;
+    if(j.learn && !p.spells.includes(j.learn)) p.spells.push(j.learn);
+  },
+  doJobChange(job,second){
+    this.closeCmd();
+    this.applyJob(job,second);
+    const p=this.p, j=JOBS[job];
+    audio.se('levelup'); this.updateStrip();
+    const lines=[
+      `ゆうしゃは ${j.name}に ${second?'しんか':'てんしょく'} した！`,
+      `さいだいHP+${j.bonusHp} こうげき+${j.bonusAtk} まもり+${j.bonusDef}`,
+    ];
+    if(j.learn) lines.push(`じゅもん「${SPELLS[j.learn].name}」を おぼえた！`);
+    if(j.trait==='cover') lines.push('せんとうちゅう、ひんしの なかまを じどうで かばう ように なった！');
+    if(j.trait==='fury') lines.push('HPが ひくいほど あたえる ダメージが あがる ように なった！');
+    this.message(lines);
+  },
+  // ===== 依頼掲示板（サブクエスト）=====
+  questBoard(){ const p=this.p;
+    this.message(['けいじばん「ぼうけんしゃへの いらい」'],()=>{
+      this.cmdCtx='field';
+      this.cmdItems=Object.keys(SUBQUESTS).map(qid=>{
+        const q=SUBQUESTS[qid], st=p.quests[qid];
+        let tag='';
+        if(!st) tag='【みうけ】';
+        else if(st.state==='done') tag='【かんりょう】';
+        else if(st.count>=q.need) tag='【たっせい！】';
+        else tag=`【${st.count}/${q.need}】`;
+        return {label:`${tag}${q.name}`,act:()=>this.questDetail(qid)};
+      });
+      this.cmdItems.push({label:'とじる',act:()=>this.closeCmd()});
+      this.cmdSel=0; this.renderCmd('cmdBox');
+    });
+  },
+  questDetail(qid){ const p=this.p, q=SUBQUESTS[qid], st=p.quests[qid];
+    this.closeCmd();
+    if(!st){
+      this.message([q.accept, `（${q.desc}）`],()=>{
+        p.quests[qid]={state:'active',count:0};
+        this.message(['いらいを うけた！']);
+      });
+    } else if(st.state==='done'){
+      this.message(['けいじばん「この いらいは かんりょうずみ。」']);
+    } else if(st.count>=q.need){
+      st.state='done'; p.gold+=q.rewardGold; this.giveItem(q.rewardItem,q.rewardN);
+      audio.se('coin'); this.updateStrip();
+      this.message([q.done, `◈${q.rewardGold} と ${ITEMS[q.rewardItem].name}×${q.rewardN} を うけとった！`]);
+    } else {
+      this.message([`${q.desc}`,`いまの しんちょく：${st.count}/${q.need}`]);
+    }
+  },
+  questProgress(enemyKey){
+    const p=this.p;
+    Object.keys(SUBQUESTS).forEach(qid=>{
+      const q=SUBQUESTS[qid], st=p.quests[qid];
+      if(st && st.state==='active' && q.target===enemyKey && st.count<q.need) st.count++;
+    });
+  },
+
+  // ===== ボス戦（転職の警告つき）=====
+  bossTalk(){ const p=this.p;
+    const warn = !p.flags.jobChanged
+      ? ['ガルゾス「フハハ… てんしょくも せずに きたか。」','ガルゾス「その ていどの ちからで わしを たおせると おもうな！」']
+      : ['ガルゾス「ほう… てんしょくしたか。だが むだだ！」'];
+    this.message([
+      'めの まえに 闇の王 ガルゾスが たちはだかる！',
+      ...warn,
+      'たたかいますか？'
+    ],()=>{
+      this.cmdCtx='field';
+      this.cmdItems=[
+        {label:'たたかう',act:()=>{ this.closeCmd(); this.startBattle('garzos'); }},
+        {label:'まだ やめておく',act:()=>{ this.closeCmd(); this.message(['いまは ちからを ためる ときだ…']); }},
+      ]; this.cmdSel=0; this.renderCmd('cmdBox');
+    });
+  },
+
+  // ===== エルフ国 =====
+  princessTalk(){ const p=this.p;
+    if(p.flags.elfCleared){
+      this.message([
+        'フィーナ「エルフの くにを すくって くれたのね。」',
+        'フィーナ「あなたが ほこらしい。ずっと そばに いますね。」'
+      ]); return;
+    }
+    if(p.flags.elfQuest){
+      this.message([
+        'フィーナ「むげんの とうの 20かいに、エルフの くにへの もんが。」',
+        'フィーナ「どうか、せかいじゅを すくって あげて ください。」'
+      ]); return;
+    }
+    this.message([
+      'フィーナ「ゆうしゃ さま、たすけて くれて ありがとう。」',
+      'フィーナ「あなたの となりに いられて しあわせです。」'
+    ]);
+  },
+  worldtreeTalk(){ const p=this.p;    if(p.flags.elfCleared){
+      this.message([
+        'よみがえった せかいじゅが、みどりに かがやいている。',
+        'こずえを かぜが やさしく ゆらした。',
+        'せかいじゅ「…ありがとう、ひかりの こ よ。」'
+      ]); return;
+    }
+    this.message([
+      'かれはてた せかいじゅが、いたいたしく たたずんでいる。',
+      'みきに みみを あてると、かすかな こどうが きこえる…',
+      'せかいじゅ「ねもとを…やみが…むしばんで…」',
+      'ねもとの どうくつに すくう やみを たたねば ならない。',
+      p.flags.elfHasKey ? 'どうくつの かぎは すでに てに している。'
+                        : 'だが どうくつの とびらには かぎが かかっている。'
+    ]);
+  },
+  elfMaidenTalk(){ const p=this.p;
+    if(p.flags.elfCleared){
+      this.message(['エルフの ひめ「あなたの ことは いっしょう わすれません。」']); return;
+    }
+    // 初回：声を聞いてくれたお礼に「エルフのかご」を授ける
+    if(!p.flags.elfBasket){
+      p.flags.elfBasket=true; audio.se('levelup'); this.updateStrip();
+      this.message([
+        'エルフの ひめ「ようこそ、ひかりの ゆうしゃ さま。」',
+        'エルフの ひめ「わたしたちの こえを きいて くださって、ほんとうに ありがとう。」',
+        'エルフの ひめ「あなたが きて くれた こと、わすれません。」',
+        'エルフの ひめ「これを どうぞ──「エルフのかご」です。」',
+        'エルフのかごを てにいれた！',
+        'たたかいの あと、みかた ぜんいんの HPが 30 かいふくする ように なった。',
+        'エルフの ひめ「せかいじゅの ねもとに、やみの ぬしが すんでいます。」',
+        'エルフの ひめ「ねもとへの とびらは かたく とざされ…」',
+        'エルフの ひめ「かぎは、どうくつ おくの ふういんの まに。」',
+        'エルフの ひめ「まず エルフの さとの ものたちにも はなしを きいて ください。」',
+        'エルフの ひめ「あなただけが、せかいじゅを すくえるのです。」'
+      ]);
+      return;
+    }
+    this.message([
+      'エルフの ひめ「ねもとの やみを たおして、せかいじゅを すくって ください。」',
+      'エルフの ひめ「かぎは どうくつ おくの ふういんの まに あります。」'
+    ]);
+  },
+  elfKeyTalk(){ const p=this.p;
+    if(p.flags.elfHasKey){ this.message(['ふういんの まには もう なにも ない。']); return; }
+    p.flags.elfHasKey=true; audio.se('chest');
+    this.message([
+      'ふるびた だいの うえに、ひかる かぎが おかれている。',
+      'せかいじゅの かぎを てに いれた！',
+      'これで ねもとへの とびらを ひらける。'
+    ]);
+  },
+  elfBossTalk(){ const p=this.p;
+    if(p.flags.elfCleared){ this.message(['やみは はらわれた。しずかな ねもとが ひろがる。']); return; }
+    const warn = !p.flags.jobChanged
+      ? ['ヌァザ「てんしょくも せぬ もの が、われを たおせると？」','ヌァザ「ぐらり と かれよ、せかいじゅ もろとも！」']
+      : ['ヌァザ「ほう、しんの ちからに めざめた もの か。」','ヌァザ「だが この ねは ふかい。ぬけぬぞ！」'];
+    this.message([
+      'せかいじゅの ねもとに、やみの ぬし 「えだ こうろの ヌァザ」が うごめく！',
+      ...warn,
+      'たたかいますか？'
+    ],()=>{
+      this.cmdCtx='field';
+      this.cmdItems=[
+        {label:'たたかう',act:()=>{ this.closeCmd(); this.startBattle('blight'); }},
+        {label:'まだ やめておく',act:()=>{ this.closeCmd(); this.message(['いまは しりぞこう…']); }},
+      ]; this.cmdSel=0; this.renderCmd('cmdBox');
+    });
+  },
+  enterTowerPrompt(){
+    const best=this.p.towerBest||0;
+    this.message([
+      'てんまで とどく ふしぎな とう。',
+      'ちゅうい：この とうに でぐちは ない。',
+      'だっしゅつ できるのは 5かいごと だけだ。',
+      best>0?`これまでの さいかい とうたつ：${best}かい`:'のぼった ものは いないという…',
+      'それでも はいりますか？'
+    ],()=>{
+      this.cmdCtx='field';
+      this.cmdItems=[
+        {label:'はい のぼる',act:()=>{ this.closeCmd(); this.enterTower(1); }},
+        {label:'いいえ やめる',act:()=>{ this.closeCmd(); this.message(['とうを あとに した。']); }},
+      ]; this.cmdSel=0; this.renderCmd('cmdBox');
+    });
+  },
+  enterTower(floor){
+    const p=this.p;
+    if(!p.towerReturn) p.towerReturn={x:p.x,y:p.y};
+    this.tower=generateTower(floor);
+    p.map='tower'; p.towerFloor=floor;
+    p.x=this.tower.entrance[0]; p.y=this.tower.entrance[1]; p.dir='up';
+    audio.bgm('cave'); this.draw(); this.setPlace();
+    this.message([`とうの ${floor}かいに たどりついた。`,'かいだん(>)を めざせ。']);
+  },
+  towerNextFloor(){
+    const p=this.p;
+    p.towerBest=Math.max(p.towerBest||0, p.towerFloor);
+    const next=p.towerFloor+1;
+    // 20階: エルフ国の門（クエスト受諾済みなら毎回出現）
+    if(p.towerFloor===20 && p.flags.elfQuest){
+      this.message([
+        '20かいの おくに、ふしぎな ひかりの もんが うかんでいる。',
+        'これが いせかいへの もん…エルフの くにへ つうじている。',
+        'どう する？',
+      ],()=>{
+        this.cmdCtx='field';
+        this.cmdItems=[
+          {label:'エルフのくにへ',act:()=>{ this.closeCmd(); this.enterElf(); }},
+          {label:'つぎの かいへ',act:()=>{ this.closeCmd(); this.enterTower(next); }},
+          {label:'とうを でる',act:()=>{ this.closeCmd(); this.exitTower(); }},
+        ]; this.cmdSel=0; this.renderCmd('cmdBox');
+      });
+      return;
+    }
+    if(p.towerFloor%5===0){
+      this.message([`${p.towerFloor}かいを とうは した！`,'さらに のぼりますか？'],()=>{
+        this.cmdCtx='field';
+        this.cmdItems=[
+          {label:'のぼる',act:()=>{ this.closeCmd(); this.enterTower(next); }},
+          {label:'とうを でる',act:()=>{ this.closeCmd(); this.exitTower(); }},
+        ]; this.cmdSel=0; this.renderCmd('cmdBox');
+      });
+    } else {
+      this.enterTower(next);
+    }
+  },
+  // 塔20階の門 → エルフ国へ転送
+  enterElf(){
+    const p=this.p;
+    // 塔から出てきた帰り先（外フィールドの塔入口）を確保
+    if(p.towerReturn){ p.elfReturnWorld={x:p.towerReturn.x,y:p.towerReturn.y}; }
+    this.tower=null; p.towerReturn=null;
+    p.map='elf'; p.x=6; p.y=7; p.dir='up';   // 世界樹(6,6)の すぐ前
+    audio.se('warp'); audio.bgm(this.bgmFor());
+    this.draw(); this.setPlace();
+    this.message([
+      'ひかりの もんを くぐった──',
+      'めの まえに、みどり ふかい もりの くにが ひろがる。',
+      'めの まえには、いたいたしく かれた せかいじゅが そびえている。',
+      'まず エルフの まちや さとで はなしを きこう。',
+      'ねもとの どうくつには かぎが かかっている。',
+    ]);
+  },
+  exitTower(){
+    const p=this.p;
+    p.towerBest=Math.max(p.towerBest||0, p.towerFloor);
+    p.map='world';
+    if(p.towerReturn){ p.x=p.towerReturn.x; p.y=p.towerReturn.y; p.towerReturn=null; }
+    this.tower=null; audio.bgm('field'); this.draw(); this.setPlace();
+    this.message([`とうから だっしゅつ した。`,`さいかい とうたつ：${p.towerBest}かい`]);
+  },
+  towerEncounter(){
+    const f=this.p.towerFloor;
+    const pool = f<=3?['slime','ghost','bat'] : f<=7?['wolf','mage','bat','ghost'] : f<=12?['golem','mage','reaper','wolf'] : ['reaper','golem','reaper','mage'];
+    const n = f<=3?1 : f<=8?(Math.random()<0.5?2:1) : (Math.random()<0.5?3:2);
+    const group=[]; for(let i=0;i<n;i++) group.push(this.pick(pool));
+    return group;
+  },
+  openTowerChest(x,y){
+    const t=this.tower, key=x+','+y;
+    if(t.opened[key]){ this.message(['たからばこは からっぽだ。']); return; }
+    t.opened[key]=true; audio.se('chest');
+    const g=t.chests[key]; let msg;
+    if(g.gold){ this.p.gold+=g.gold; msg=`たからばこを あけた！ ◈${g.gold}を てにいれた。`; }
+    else if(g.gear){
+      if(!this.p.ownedGear.includes(g.gear)){ this.p.ownedGear.push(g.gear);
+        msg=`たからばこを あけた！ ${GEAR[g.gear].name}を てにいれた！`; }
+      else { this.p.gold+=300; msg=`たからばこを あけた！ ${GEAR[g.gear].name}…は もっていた。◈300に かえた。`; }
+    }
+    else { this.giveItem(g.item,g.n); msg=`たからばこを あけた！ ${ITEMS[g.item].name}を ${g.n}こ てにいれた。`; }
+    this.updateStrip(); this.message([msg]);
+  },
+
+  // ===== どくろの隠しイベント（エクスカリバー → ひのきのぼうきれ）=====
+  skullTalk(){ const p=this.p, st=p.flags.excaliburStage;
+    if(st===0){ p.flags.excaliburStage=1;
+      this.message([
+        'どくろ「フォフォフォ… よくぞ ここまで。」',
+        'どくろ「この はこを あけたくば、ためしを うけよ。」',
+        'どくろ「フィールドの ちゅうおう、はしの まんなかで 10 かぞえよ。」',
+        'どくろ「さすれば てんから さずかるであろう…」'
+      ]);
+    } else if(st===1 && p.equip.weapon!=='excalibur'){
+      this.message(['どくろ「はしの まんなかで 10 かぞえるのだ。」']);
+    } else if(p.equip.weapon==='excalibur' || p.ownedGear.includes('excalibur')){ p.flags.excaliburStage=3;
+      this.message([
+        'どくろ「おお…！ エクスカリバーを もちかえったか！」',
+        'どくろ「やくそくどおり はこの ふういんを とこう。」',
+        'ガコッ…！ となりの たからばこの ふういんが とけた！',
+        'どくろ「フォフォフォ… あけてみるが よい。」',
+        '― エクスカリバーは ひかりとなって きえさった ―'
+      ],()=>{ // エクスカリバー消失：所持・装備から除去
+        p.ownedGear=p.ownedGear.filter(g=>g!=='excalibur');
+        if(p.equip.weapon==='excalibur') p.equip.weapon='none';
+        this.updateStrip();
+      });
+    } else if(st===3){
+      this.message(['どくろ「となりの はこを あけるが よい。」']);
+    } else {
+      this.message(['どくろ「フォフォフォ…」']);
+    }
+  },
+  // フィールド橋中央の待機イベント（tryMove後にチェック）
+  checkBridgeEvent(){
+    const p=this.p;
+    if(p.map!=='world' || p.flags.excaliburStage!==1) return;
+    if(p.equip.weapon==='excalibur' || p.ownedGear.includes('excalibur')) return;
+    // 橋(B)の中央あたり：y=9 の橋。中央 x=10前後
+    const m=MAPS.world;
+    if(m.rows[p.y] && m.rows[p.y][p.x]==='B' && p.x>=9 && p.x<=10){
+      if(this._bridgeTimer) return; // 既に計測中
+      this.message(['はしの まんなかに たった。','こえが きこえる…「うごくな。10 かぞえよ」']);
+      let count=0;
+      this._bridgeTimer=setInterval(()=>{
+        // 橋から離れたら中断
+        const cm=MAPS.world;
+        if(this.p.map!=='world' || !(cm.rows[this.p.y] && cm.rows[this.p.y][this.p.x]==='B' && this.p.x>=9 && this.p.x<=10)){
+          clearInterval(this._bridgeTimer); this._bridgeTimer=null;
+          this.toast('ばのうごきで ぎしきが とぎれた…');
+          return;
+        }
+        count++;
+        this.toast(`…${count}`);
+        if(count>=10){
+          clearInterval(this._bridgeTimer); this._bridgeTimer=null;
+          this.giveExcalibur();
+        }
+      }, 1000);
+    }
+  },
+  giveExcalibur(){
+    const p=this.p; p.flags.excaliburStage=2;
+    if(!p.ownedGear.includes('excalibur')) p.ownedGear.push('excalibur');
+    p.equip.weapon='excalibur';
+    audio.se('levelup'); this.updateStrip();
+    this.message([
+      'てんから ひかりが さしこんだ…！',
+      'でんせつの けん エクスカリバー を てにいれた！',
+      'こうげきりょくが +100 された！',
+      '（どくろの ところへ もちかえろう）'
+    ]);
+  },
+  giveTwig(){
+    const p=this.p;
+    if(!p.ownedGear.includes('twig')) p.ownedGear.push('twig');
+    this.message([
+      'なんと なかみは ひのきの ぼうきれ だった…',
+      'ひのきの ぼうきれ を てにいれた。',
+      'そうび しますか？'
+    ],()=>{
+      this.cmdCtx='field';
+      this.cmdItems=[
+        {label:'そうびする',act:()=>{ this.closeCmd();
+          p.equip.weapon='twig'; p.flags.cursed=true;
+          audio.se('damage'); this.updateStrip();
+          this.message(['ひのきの ぼうきれを そうびした。','…のろわれた！','ゆうしゃの からだが おもい…']);
+        }},
+        {label:'やめておく',act:()=>{ this.closeCmd(); this.message(['ぶきぶくろに しまった。']); }},
+      ]; this.cmdSel=0; this.renderCmd('cmdBox');
+    });
+  },
+  inn(cost){ if(this.p.gold<cost){ this.message([`やどや「いっぱく ◈${cost}。…おかねが たりないね。」`]); return; }
+    this.message([`やどや「いっぱく ◈${cost}。おやすみ なさい。」`],()=>{
+      this.p.gold-=cost;
+      // 生存者のみ全回復（HP0は教会でのみ蘇生）
+      if(this.p.hp>0){ this.p.hp=this.p.maxHp; this.p.mp=this.p.maxMp; }
+      this.p.party.forEach(key=>{ const st=this.p.allyState[key];
+        if(st.hp>0){ st.hp=st.maxHp; st.mp=st.maxMp; } });
+      this.updateStrip();
+      const hasDown=this.downedAllies().length>0;
+      this.message(['HPと MPが ぜんかい した！'+(hasDown?'\n（たおれた なかまは きょうかいで そせいを）':'')]);
+    }); },
+
+  // 教会: 記録 と 蘇生(◍999999)
+  REVIVE_COST: 999999,
+  downedAllies(){ // HP0の対象（勇者＋仲間）を返す
+    const list=[]; if(this.p.hp<=0) list.push('hero');
+    this.p.party.forEach(key=>{ if(this.p.allyState[key].hp<=0) list.push(key); });
+    return list;
+  },
+  church(){
+    this.message(['しんかん「ここは アルディアきょうかい。なにを なさいますか？」'],()=>{
+      this.cmdCtx='field';
+      this.cmdItems=[
+        {label:'きろくする',act:()=>{ this.closeCmd(); this.message(['しんかん「ぼうけんの しょに きろくします。」'],()=>this.save(true)); }},
+        {label:'そせい',    act:()=>{ this.closeCmd(); this.churchRevive(); }},
+        {label:'やめる',    act:()=>{ this.closeCmd(); this.message(['しんかん「いってらっしゃいませ。」']); }},
+      ]; this.cmdSel=0; this.renderCmd('cmdBox');
+    });
+  },
+  churchRevive(){
+    const downed=this.downedAllies();
+    if(downed.length===0){ this.message(['しんかん「みなさま おげんきです。そせいは ひつようありません。」']); return; }
+    const cost=this.REVIVE_COST;
+    if(this.p.gold<cost){
+      this.message([`しんかん「そせいの ぎしきには ◈${cost} ひつようです。」`,'しんかん「…おかねが たりないようですね。」']); return;
+    }
+    this.message([`しんかん「そせいの ぎしきには ◈${cost}。よろしいですか？」`],()=>{
+      this.cmdCtx='field';
+      this.cmdItems=[
+        {label:'おねがいする',act:()=>{ this.closeCmd();
+          this.p.gold-=cost;
+          const names=[];
+          downed.forEach(key=>{
+            if(key==='hero'){ this.p.hp=this.p.maxHp; names.push('ゆうしゃ'); }
+            else { const st=this.p.allyState[key]; st.hp=st.maxHp; names.push(ALLIES[key].name); }
+          });
+          audio.se('levelup'); this.updateStrip();
+          this.message([`しんかん「いのりを ささげます…」`,`${names.join('と')}は いきかえった！`]);
+        }},
+        {label:'やめる',act:()=>{ this.closeCmd(); this.message(['しんかん「またの おこしを。」']); }},
+      ]; this.cmdSel=0; this.renderCmd('cmdBox');
+    });
+  },
+
+  /* ---- フィールドメニュー ---- */
+  openFieldMenu(){ this.cmdCtx='field';
+    this.cmdItems=[
+      {label:'そうび',act:()=>this.equipMenu()},
+      {label:'じゅもん',act:()=>this.fieldSpellMenu()},
+      {label:'どうぐ',act:()=>this.fieldItemMenu()},
+      {label:'つよさ',act:()=>this.showStatus()},
+      {label:'きろくする',act:()=>this.saveMenu()},
+      {label:'タイトルに もどる',act:()=>this.titleMenu()},
+      {label:'とじる',act:()=>this.closeCmd()},
+    ]; this.cmdSel=0; this.renderCmd('cmdBox');
+  },
+  // タイトルへ戻る（セーブ確認つき）
+  titleMenu(){
+    this.message(['タイトルに もどりますか？','（きろくして いない しんちょくは うしなわれます）'],()=>{
+      this.cmdCtx='field';
+      this.cmdItems=[
+        {label:'きろくして もどる',act:()=>{ this.closeCmd(); this.save(); audio.stopBgm(); location.reload(); }},
+        {label:'きろくせず もどる',act:()=>{ this.closeCmd(); audio.stopBgm(); location.reload(); }},
+        {label:'やめる',act:()=>{ this.closeCmd(); }},
+      ]; this.cmdSel=0; this.renderCmd('cmdBox');
+    });
+  },
+  // どこでもセーブ
+  saveMenu(){
+    this.message(['ぼうけんの しょに きろくしますか？'],()=>{
+      this.cmdCtx='field';
+      this.cmdItems=[
+        {label:'きろくする',act:()=>{ this.closeCmd(); this.save(true); }},
+        {label:'やめる',act:()=>{ this.closeCmd(); }},
+      ]; this.cmdSel=0; this.renderCmd('cmdBox');
+    });
+  },
+  // 装備メニュー: 武器/防具スロットを選ぶ
+  equipMenu(){
+    const p=this.p;
+    const wn=GEAR[p.equip.weapon].name, an=GEAR[p.equip.armor].name;
+    this.cmdItems=[
+      {label:`ぶき：${wn}`,act:()=>this.equipSlotMenu('weapon')},
+      {label:`よろい：${an}`,act:()=>this.equipSlotMenu('armor')},
+      {label:'もどる',act:()=>this.openFieldMenu()},
+    ]; this.cmdSel=0; this.renderCmd('cmdBox');
+  },
+  equipSlotMenu(slot){
+    const p=this.p;
+    // 呪われた武器を装備中は外せない
+    if(slot==='weapon' && GEAR[p.equip.weapon]?.cursed){
+      const wn=GEAR[p.equip.weapon].name;
+      this.message([`${wn}は からだから はなれない…！`],()=>this.equipMenu()); return;
+    }
+    const owned=p.ownedGear.filter(g=>GEAR[g].slot===slot);
+    this.cmdItems=owned.map(g=>{
+      const ge=GEAR[g], val=slot==='weapon'?`こうげき+${ge.atk}`:`しゅび+${ge.def}`;
+      const cur=p.equip[slot]===g?'▶':'　';
+      return {label:`${cur}${ge.name} ${val}`,act:()=>this.doEquip(slot,g)};
+    });
+    this.cmdItems.push({label:'もどる',act:()=>this.equipMenu()});
+    this.cmdSel=0; this.renderCmd('cmdBox');
+  },
+  doEquip(slot,g){
+    const p=this.p;
+    p.equip[slot]=g;
+    if(g==='twig'){ p.flags.cursed=true; audio.se('damage');
+      this.closeCmd(); if(this.mode==='field') this.draw();
+      this.message(['ひのきの ぼうきれを そうびした。','…のろわれた！']); return; }
+    if(slot==='weapon' && g!=='twig') p.flags.cursed=(p.equip.weapon==='twig');
+    audio.se('select'); this.updateStrip();
+    this.closeCmd(); if(this.mode==='field') this.draw();
+    this.message([`${GEAR[g].name}を そうびした。`]);
+  },
+  fieldSpellMenu(){ const u=this.p.spells.filter(s=>SPELLS[s].field);
+    if(!u.length){ this.message(['つかえる じゅもんが ない。']); return; }
+    this.cmdItems=u.map(s=>({label:`${SPELLS[s].name}(${SPELLS[s].mp})`,act:()=>this.castField(s)}));
+    this.cmdItems.push({label:'もどる',act:()=>this.openFieldMenu()}); this.cmdSel=0; this.renderCmd('cmdBox');
+  },
+  castField(k){ const s=SPELLS[k]; if(this.p.mp<s.mp){ this.message(['MPが たりない。']); return; }
+    this.p.mp-=s.mp; const before=this.p.hp; this.p.hp=Math.min(this.p.maxHp,this.p.hp+s.amt);
+    const healed=this.p.hp-before;
+    audio.se('heal'); this.updateStrip(); this.closeCmd();
+    this.message([`${s.name}を となえた！\nHPが ${healed} かいふく した。`]);
+  },
+  fieldItemMenu(){ const keys=Object.keys(this.p.items).filter(k=>this.p.items[k]>0);
+    if(!keys.length){ this.message(['どうぐを もっていない。']); return; }
+    this.cmdItems=keys.map(k=>({label:`${ITEMS[k].name}(${this.p.items[k]})`,act:()=>this.useItemField(k)}));
+    this.cmdItems.push({label:'もどる',act:()=>this.openFieldMenu()}); this.cmdSel=0; this.renderCmd('cmdBox');
+  },
+  useItemField(k){ const it=ITEMS[k]; let line;
+    if(it.type==='revive'){
+      const downed=this.p.party.filter(key=>this.p.allyState[key].hp<=0);
+      if(!downed.length){ this.message(['たおれている なかまが いない。'],()=>this.fieldItemMenu()); return; }
+      this.p.items[k]--;
+      const back=[];
+      downed.forEach(key=>{ if(Math.random()<it.rate){ const st=this.p.allyState[key];
+        st.hp=Math.max(1,Math.floor(st.maxHp/2)); back.push(ALLIES[key].name); } });
+      audio.se(back.length?'levelup':'miss'); this.updateStrip(); this.closeCmd();
+      if(back.length) this.message([`${it.name}を つかった。`, `${back.join('・')}が いきかえった！`]);
+      else this.message([`${it.name}を つかった。`,'…しかし だれも いきかえらなかった。']);
+      return;
+    }
+    if(it.type==='cure'){
+      if(!this.p.status){ this.message(['いまは つかう ひつようが ない。'],()=>this.fieldItemMenu()); return; }
+      this.p.items[k]--; this.p.status=''; line='じょうたいいじょうが なおった。';
+      audio.se('heal'); this.updateStrip(); this.closeCmd(); this.message([`${it.name}を つかった。\n${line}`]); return;
+    }
+    this.p.items[k]--;
+    if(it.type==='heal'){ const b=this.p.hp; this.p.hp=Math.min(this.p.maxHp,this.p.hp+it.amt); line=`HPが ${this.p.hp-b} かいふく した。`; }
+    else { const b=this.p.mp; this.p.mp=Math.min(this.p.maxMp,this.p.mp+it.amt); line=`MPが ${this.p.mp-b} かいふく した。`; }
+    audio.se('heal'); this.updateStrip(); this.closeCmd(); this.message([`${it.name}を つかった。\n${line}`]);
+  },
+  showStatus(){ const p=this.p; this.closeCmd();
+    const job=JOBS[p.job]?JOBS[p.job].name:'ゆうしゃ';
+    const pages=[];
+    // 勇者（武器・よろい補正込みの実効値）
+    pages.push(
+      `★ ${job}  Lv${p.lv}\n`+
+      `HP ${p.hp}/${p.maxHp}  MP ${p.mp}/${p.maxMp}\n`+
+      `ちから ${this.atk()}  みのまもり ${this.def()}  すばやさ ${this.spd()}\n`+
+      `ぶき：${GEAR[p.equip.weapon].name}\nよろい：${GEAR[p.equip.armor].name}\n`+
+      `じゅもん：${p.spells.length?p.spells.map(s=>SPELLS[s].name).join('・'):'なし'}`
+    );
+    // 仲間（1人1ページ）
+    p.party.forEach(key=>{
+      const a=ALLIES[key], st=p.allyState[key];
+      const fainted = st.hp<=0 ? '  （せんとうふのう）' : '';
+      pages.push(
+        `★ ${a.name}  Lv${st.lv}${fainted}\n`+
+        `HP ${Math.max(0,st.hp)}/${st.maxHp}  MP ${st.mp}/${st.maxMp}\n`+
+        `ちから ${st.atk}  みのまもり ${st.def}  すばやさ ${st.spd}\n`+
+        `じゅもん：${st.spells.length?st.spells.map(s=>SPELLS[s].name).join('・'):'なし'}`
+      );
+    });
+    this.message(pages);
+  },
+
+  renderCmd(box){ const el=document.getElementById(box); el.classList.add('show');
+    el.style.display='block';
+    el.innerHTML=this.cmdItems.map((it,i)=>`<div class="cmd-item ${i===this.cmdSel?'sel':''}" data-i="${i}">${it.label}</div>`).join('');
+    el.querySelectorAll('.cmd-item').forEach(e=>e.onclick=()=>{ this.cmdSel=+e.dataset.i; this.confirmCmd(); });
+  },
+  confirmCmd(){ audio.se('select'); const it=this.cmdItems[this.cmdSel]; if(it) it.act(); },
+  closeCmd(){ this.cmdCtx=''; this.cmdItems=[]; const c=document.getElementById('cmdBox'); c.classList.remove('show'); c.style.display='none'; },
+
+  /* ---- 物語 ---- */
+  queueStory(id){ const s=STORY.find(x=>x.id===id);
+    if(!s||this.p.seen.includes(id)) return; this.p.seen.push(id); this.message(s.pages.slice());
+  },
+
+  /* ---- メッセージ ---- */
+  message(arr,after){ this.msgQueue=arr.slice(); this.msgAfter=after||null;
+    if(this.mode==='battle') this.showBattleUI('msg');
+    else document.getElementById('msgBox').classList.add('show');
+    this.showMsgPage();
+  },
+  showMsgPage(){ const inB=this.mode==='battle';
+    const txt=document.getElementById(inB?'bMsgText':'msgText');
+    const full=this.msgQueue[0]; this._typeFull=full; this._typing=true; let i=0;
+    const tick=()=>{ if(!this._typing){ txt.textContent=full;
+        if(this.auto&&this.mode==='battle') this._autoAdv(); return; }
+      txt.textContent=full.slice(0,i);
+      txt.insertAdjacentHTML('beforeend','<span class="msg-cursor">●</span>');
+      if(i<full.length){ i++; setTimeout(tick,this.msgDelay); }
+      else { txt.textContent=full; this._typing=false;
+        if(this.auto&&this.mode==='battle') this._autoAdv(); } };
+    tick();
+  },
+  _autoAdv(){ clearTimeout(this._autoTimer);
+    this._autoTimer=setTimeout(()=>{ if(this.auto&&!this._typing) this.advanceMsg(); }, 750); },
+  advanceMsg(){ if(this._typing){ this._typing=false;
+      document.getElementById(this.mode==='battle'?'bMsgText':'msgText').textContent=this._typeFull; return; }
+    this.msgQueue.shift();
+    if(this.msgQueue.length){ this.showMsgPage(); return; }
+    document.getElementById('msgBox').classList.remove('show');
+    const after=this.msgAfter; this.msgAfter=null; if(after) after();
+  },
+
+  /* ===================== 戦闘（複数 vs 複数・素早さ順） =====================
+     設計(Wikibooks準拠):
+       - 全ユニット(味方+敵)を units[] にまとめ、毎ターン spd でソート→行動順
+       - 各ユニットに side('ally'/'enemy'), done(行動済みフラグ), alive を持たせる
+       - プレイヤーは生存味方ごとにコマンド入力→順に解決
+  ====================================================================== */
+  weaponAtk(){ return GEAR[this.p.equip.weapon]?.atk||0; },
+  armorDef(){ return GEAR[this.p.equip.armor]?.def||0; },
+  atk(){ return this.p.baseAtk + this.p.lv*3 + this.weaponAtk(); },
+  def(){ return this.p.baseDef + this.p.lv*2 + this.armorDef(); },
+  spd(){ return this.p.baseSpd + Math.floor(this.p.lv*0.5); },
+  showBattleUI(which){
+    document.getElementById('bMsg').style.display=which==='msg'?'block':'none';
+    document.getElementById('bCmd').style.display=which==='cmd'?'block':'none';
+    document.getElementById('bSub').style.display=which==='sub'?'block':'none';
+  },
+
+  // 戦闘画面の勇者の見た目：武器を装備しているときだけ剣つきにする
+  heroBattleArt(){
+    const p=this.p;
+    const base=JOBS[p.job]?.art||'🧝';
+    // 転職後（パラディン🛡️/ようしゃ⚔️）は固有アートを優先
+    if(JOBS[p.job] && p.job!=='hero') return base;
+    return (p.equip.weapon && p.equip.weapon!=='none') ? '🧝‍♂️⚔️' : base;
+  },
+  // 味方ユニットを現在の状態から構築（勇者＋仲間）
+  buildAllies(){
+    const p=this.p, allies=[];
+    allies.push({ side:'ally', isHero:true, key:'hero', name:'ゆうしゃ', art:this.heroBattleArt(), lv:p.lv,
+      hp:p.hp, maxHp:p.maxHp, mp:p.mp, maxMp:p.maxMp,
+      trait:(JOBS[p.job]&&JOBS[p.job].trait)||null,
+      atk:this.atk(), def:this.def(), spd:this.spd(), spells:p.spells.slice(), alive:p.hp>0, status:p.status||'' });
+    p.party.forEach(key=>{
+      const a=ALLIES[key], st=p.allyState[key];
+      allies.push({ side:'ally', isHero:false, key, name:a.name, art:a.art, lv:st.lv,
+        hp:st.hp, maxHp:st.maxHp, mp:st.mp, maxMp:st.maxMp,
+        atk:st.atk, def:st.def, spd:st.spd, spells:st.spells.slice(), alive:st.hp>0, status:st.status||'' });
+    });
+    return allies;
+  },
+  // 戦闘終了時、味方ユニットの現在HP/MP/状態を永続データへ書き戻す
+  syncAlliesBack(){
+    this.allies.forEach(u=>{
+      if(u.isHero){ this.p.hp=Math.max(0,u.hp); this.p.mp=u.mp; this.p.status=u.alive?u.status:''; }
+      else { const st=this.p.allyState[u.key]; st.hp=Math.max(0,u.hp); st.mp=u.mp; st.status=u.alive?u.status:''; }
+    });
+  },
+
+  startBattle(arg){
+    // とくぎ効果を初期化（前の戦闘の持ち越し防止）
+    this.guardAllTurns=0; this.provokeTurns=0; this.provokeTarget=null;
+    // arg: 敵キー1つ(ボス) または 敵キー配列(グループ)
+    let keys = Array.isArray(arg)?arg:[arg];
+    let f=this.p.map==='cave2'?1.15:(this.p.map==='cave1'?1.05:1);
+    if(this.p.map==='tower') f=1+(this.p.towerFloor||1)*0.08; // 階が深いほど強い
+    this.enemies = keys.map((key,i)=>{
+      const b=ENEMIES[key]; const sc=b.boss?1:f;
+      return { side:'enemy', key, name:b.name, art:b.art, boss:!!b.boss, spell:b.spell||null,
+        form2:b.form2||null, transformed:false,
+        maxHp:Math.round(b.hp*sc), hp:Math.round(b.hp*sc),
+        atk:Math.round(b.atk*sc), def:b.def, spd:b.spd||8,
+        xp:Math.round(b.xp*sc), gold:Math.round(b.gold*sc), alive:true, slot:i };
+    });
+    this.allies = this.buildAllies();
+    this.isBossBattle = this.enemies.some(e=>e.boss);
+    audio.se('encounter'); audio.bgm(this.isBossBattle?'boss':'battle'); this.mode='battle';
+    document.getElementById('strip').classList.remove('show');
+    document.getElementById('pad').classList.remove('show');
+    this.closeCmd();
+    document.getElementById('battle').classList.add('show');
+    const bgType=(this.p.map==='tower')?'tower':((this.p.map==='cave1'||this.p.map==='cave2')?'cave':(this.p.map==='castle'?'castle':((this.p.map==='elf'||this.p.map==='elfcave')?'elf':'field')));
+    document.getElementById('battle').dataset.bg=bgType;
+    const ab=document.getElementById('bAuto');
+    this.refreshAutoBtn();
+    this.renderEnemies(); this.renderParty();
+    const names=this.enemies.length===1?this.enemies[0].name
+      : this.enemyCountLabel();
+    this.message([`${names}が あらわれた！`],()=>this.startTurn());
+  },
+  enemyCountLabel(){
+    // 同名をまとめて「スライム2ひき」のように
+    const counts={};
+    this.enemies.forEach(e=>counts[e.name]=(counts[e.name]||0)+1);
+    return Object.entries(counts).map(([n,c])=>c>1?`${n} ${c}たい`:n).join('と');
+  },
+
+  aliveEnemies(){ return this.enemies.filter(e=>e.alive); },
+  aliveAllies(){ return this.allies.filter(a=>a.alive); },
+
+  // ===== ターン開始：味方のコマンドを順に入力 =====
+  startTurn(){
+    // とくぎ持続の減算（ターン経過）
+    if(this.guardAllTurns>0) this.guardAllTurns--;
+    if(this.provokeTurns>0){
+      this.provokeTurns--;
+      if(this.provokeTurns<=0 && this.provokeTarget){
+        this.provokeTarget._defBonus=Math.max(0,(this.provokeTarget._defBonus||0)-30);
+        this.provokeTarget=null;
+      }
+    }
+    this.enemies.concat(this.allies).forEach(u=>u.done=false);
+    this.renderEnemies(); // 倒した敵の表示を整理
+    this.allyQueue = this.aliveAllies().slice(); // コマンド入力待ちの味方
+    this.actions = []; // {actor, type, ...}
+    this.inputNextAlly();
+  },
+  inputNextAlly(){
+    if(this.allyQueue.length===0){ this.resolveTurn(); return; }
+    this.curActor = this.allyQueue[0];
+    // 眠っている味方は行動できない（起きる判定はターン解決時）
+    if(this.curActor.status==='sleep'){
+      this.actions.push({ actor:this.curActor, type:'asleep' });
+      this.allyQueue.shift(); this.inputNextAlly(); return;
+    }
+    this.renderParty();
+    if(this.auto){ this.autoChoose(); return; }
+    this.battleMenu();
+  },
+  toggleAuto(){
+    // 0:OFF → 1:AUTO(通常) → 2:AUTO(いのちだいじに) → 0...
+    this.autoMode=((this.autoMode||0)+1)%3;
+    this.auto=this.autoMode>0;
+    this.autoCare=this.autoMode===2;
+    this.refreshAutoBtn();
+    audio.se('select');
+    // コマンド入力待ちの最中にONにしたら、その場から自動進行を開始
+    if(this.auto && this.mode==='battle' && this.cmdCtx==='battle' && this.curActor){
+      this.closeBattleSub(); this.autoChoose();
+    }
+  },
+  refreshAutoBtn(){
+    const b=document.getElementById('bAuto'); if(!b) return;
+    b.classList.toggle('on',!!this.auto);
+    b.textContent = this.autoMode===2 ? 'いのち ▣' : (this.autoMode===1 ? 'AUTO ▣' : 'AUTO ▢');
+  },
+  closeBattleSub(){ this.cmdCtx=''; document.getElementById('bSub').style.display='none'; },
+  autoChoose(){
+    const a=this.curActor;
+    const healSpell = (a.spells||[]).find(s=>SPELLS[s].type==='heal');
+
+    if(this.autoCare){
+      // 「いのちだいじに」：回復魔法とバフ(とくぎ)以外は使わない
+      // 1) 味方の誰かがHP6割以下なら回復を最優先
+      const hurtC = this.aliveAllies().some(x=>x.hp<=x.maxHp*0.6);
+      if(healSpell && hurtC && a.mp>=SPELLS[healSpell].mp){
+        this.actions.push({ actor:a, type:'spell', spell:healSpell });
+        this.allyQueue.shift(); this.inputNextAlly(); return;
+      }
+      // 2) バフのとくぎ（賢者かちこち＝被ダメ減 / 戦士ちょうはつ＝防御バフ）をまだ使っていなければ使う
+      const skills=this.skillsFor(a);
+      for(const k of skills){
+        const s=SKILLS[k];
+        if(k==='kachikochi'){
+          if(this.guardAllTurns>0) continue;          // 効果中は重ねない
+          if(s.mp && a.mp<s.mp) continue;
+          this.actions.push({ actor:a, type:'skill', skill:k });
+          this.allyQueue.shift(); this.inputNextAlly(); return;
+        }
+        if(k==='provoke'){
+          if(a._provokeUsed) continue;                // 1戦闘1回
+          this.actions.push({ actor:a, type:'skill', skill:k });
+          this.allyQueue.shift(); this.inputNextAlly(); return;
+        }
+      }
+      // 3) 回復もバフも不要／不可なら、攻撃呪文は使わず通常攻撃のみ（MP温存）
+      const tgtC=this.aliveEnemies().sort((x,y)=>x.hp-y.hp)[0];
+      this.actions.push({ actor:a, type:'attack', target:tgtC });
+      this.allyQueue.shift(); this.inputNextAlly(); return;
+    }
+
+    // 通常オート: 回復役は味方がHP4割以下なら回復を優先
+    const hurt = this.aliveAllies().some(x=>x.hp<=x.maxHp*0.4);
+    if(healSpell && hurt && a.mp>=SPELLS[healSpell].mp){
+      this.actions.push({ actor:a, type:'spell', spell:healSpell });
+      this.allyQueue.shift(); this.inputNextAlly(); return;
+    }
+    // 攻撃呪文を使えるなら（MPに余裕があれば）優先
+    const atkSpell = (a.spells||[]).find(s=>SPELLS[s].type==='dmg');
+    if(atkSpell && a.mp>=SPELLS[atkSpell].mp && a.mp>a.maxMp*0.3){
+      this.actions.push({ actor:a, type:'spell', spell:atkSpell, target:this.pick(this.aliveEnemies()) });
+      this.allyQueue.shift(); this.inputNextAlly(); return;
+    }
+    // それ以外は通常攻撃（HPの低い敵を狙う）
+    const tgt=this.aliveEnemies().sort((x,y)=>x.hp-y.hp)[0];
+    this.actions.push({ actor:a, type:'attack', target:tgt });
+    this.allyQueue.shift(); this.inputNextAlly();
+  },
+  battleMenu(){ this.cmdCtx='battle';
+    const who=this.curActor.name;
+    this.cmdItems=[
+      {label:'たたかう',act:()=>this.cmdAttack()},
+      {label:'じゅもん',act:()=>this.cmdSpellMenu()},
+    ];
+    if(this.skillsFor(this.curActor).length) this.cmdItems.push({label:'とくぎ',act:()=>this.cmdSkillMenu()});
+    this.cmdItems.push(
+      {label:'どうぐ',act:()=>this.cmdItemMenu()},
+      {label:'にげる',act:()=>this.cmdFlee()},
+    );
+    this.cmdSel=0; this.showBattleUI('cmd'); this.renderCmd('bCmd');
+    document.getElementById('bMsgText').textContent='';
+  },
+  // このユニットが使えるとくぎ一覧
+  skillsFor(u){
+    const out=[];
+    if(u.key==='sage' && u.lv>=10) out.push('kachikochi');
+    if(u.key==='warrior' && u.lv>=10) out.push('provoke');
+    return out;
+  },
+  battleA(){ if(this.cmdCtx==='battle') this.confirmCmd(); },
+
+  // --- コマンド: 攻撃（対象選択へ） ---
+  cmdAttack(){ this.chooseTarget(target=>{
+    this.actions.push({ actor:this.curActor, type:'attack', target });
+    this.allyQueue.shift(); this.inputNextAlly();
+  }); },
+  cmdSpellMenu(){
+    const list=this.curActor.spells||[];
+    if(!list.length){ this.message(['じゅもんを おぼえていない。'],()=>this.battleMenu()); return; }
+    const box=document.getElementById('bSub'); this.showBattleUI('sub');
+    box.innerHTML=list.map(s=>`<div class="cmd-item" data-s="${s}">${SPELLS[s].name}(${SPELLS[s].mp})</div>`).join('')+`<div class="cmd-item" data-back="1">もどる</div>`;
+    box.querySelectorAll('.cmd-item').forEach(el=>el.onclick=()=>el.dataset.back?this.battleMenu():this.cmdSpellPick(el.dataset.s));
+  },
+  cmdSpellPick(k){
+    const s=SPELLS[k];
+    if(this.curActor.mp<s.mp){ this.message(['MPが たりない！'],()=>this.cmdSpellMenu()); return; }
+    if(s.type==='heal'){
+      // 回復は味方対象（負傷の多い味方を選ぶ：自動で最もHP割合低い味方）
+      this.actions.push({ actor:this.curActor, type:'spell', spell:k });
+      this.allyQueue.shift(); this.inputNextAlly();
+    } else {
+      this.chooseTarget(target=>{
+        this.actions.push({ actor:this.curActor, type:'spell', spell:k, target });
+        this.allyQueue.shift(); this.inputNextAlly();
+      });
+    }
+  },
+  cmdSkillMenu(){
+    const list=this.skillsFor(this.curActor);
+    if(!list.length){ this.battleMenu(); return; }
+    const box=document.getElementById('bSub'); this.showBattleUI('sub');
+    box.innerHTML=list.map(k=>{
+      const s=SKILLS[k];
+      const used=(k==='provoke' && this.curActor._provokeUsed);
+      const lbl = used ? `${s.name}（つかえない）` : `${s.name}${s.mp?`(${s.mp})`:''}`;
+      return `<div class="cmd-item" data-sk="${used?'':k}">${lbl}</div>`;
+    }).join('')+`<div class="cmd-item" data-back="1">もどる</div>`;
+    box.querySelectorAll('.cmd-item').forEach(el=>el.onclick=()=>{
+      if(el.dataset.back) this.battleMenu();
+      else if(el.dataset.sk) this.cmdSkillPick(el.dataset.sk);
+    });
+  },
+  cmdSkillPick(k){
+    const s=SKILLS[k], a=this.curActor;
+    if(s.once && a._provokeUsed){ this.message(['この せんとうでは もう つかえない。'],()=>this.cmdSkillMenu()); return; }
+    if(s.mp && a.mp<s.mp){ this.message(['MPが たりない！'],()=>this.cmdSkillMenu()); return; }
+    this.actions.push({ actor:a, type:'skill', skill:k });
+    this.allyQueue.shift(); this.inputNextAlly();
+  },
+  cmdItemMenu(){
+    const keys=Object.keys(this.p.items).filter(k=>this.p.items[k]>0);
+    if(!keys.length){ this.message(['どうぐが ない。'],()=>this.battleMenu()); return; }
+    const box=document.getElementById('bSub'); this.showBattleUI('sub');
+    box.innerHTML=keys.map(k=>`<div class="cmd-item" data-it="${k}">${ITEMS[k].name}(${this.p.items[k]})</div>`).join('')+`<div class="cmd-item" data-back="1">もどる</div>`;
+    box.querySelectorAll('.cmd-item').forEach(el=>el.onclick=()=>el.dataset.back?this.battleMenu():this.cmdItemPick(el.dataset.it));
+  },
+  cmdItemPick(k){
+    this.actions.push({ actor:this.curActor, type:'item', item:k });
+    this.allyQueue.shift(); this.inputNextAlly();
+  },
+  cmdFlee(){
+    if(this.isBossBattle){ this.message(['にげられない！'],()=>this.battleMenu()); return; }
+    this.actions.push({ actor:this.curActor, type:'flee' });
+    this.allyQueue.shift(); this.inputNextAlly();
+  },
+
+  // --- 敵をタップ or コマンドで選ぶ ---
+  chooseTarget(cb){
+    const targets=this.aliveEnemies();
+    if(targets.length===1){ cb(targets[0]); return; }
+    this.cmdCtx=''; this.showBattleUI('msg');
+    document.getElementById('bMsgText').textContent='てきを えらんでください';
+    const nodes=document.querySelectorAll('#bEnemies .b-unit');
+    nodes.forEach(n=>{
+      const slot=+n.dataset.slot; const e=this.enemies.find(x=>x.slot===slot);
+      if(e&&e.alive){ n.classList.add('targetable');
+        n.onclick=()=>{ nodes.forEach(x=>{x.classList.remove('targetable');x.onclick=null;}); cb(e); };
+      }
+    });
+  },
+
+  // ===== 解決フェーズ：素早さ順に全行動を処理 =====
+  resolveTurn(){
+    // 敵の行動を決定（生きてる敵全員ターゲットはランダムな生存味方）
+    this.aliveEnemies().forEach(e=>{
+      this.actions.push({ actor:e, type:'enemy' });
+    });
+    // 素早さソート（行動順配列）。逃走は最優先で処理
+    this.actions.sort((a,b)=>{
+      if(a.type==='flee'&&b.type!=='flee') return -1;
+      if(b.type==='flee'&&a.type!=='flee') return 1;
+      return b.actor.spd - a.actor.spd;
+    });
+    this.actIndex=0;
+    this.showBattleUI('msg');
+    this.nextAction();
+  },
+  nextAction(){
+    // 勝敗判定
+    if(this.aliveEnemies().length===0){ this.victory(); return; }
+    if(this.aliveAllies().length===0){ this.defeat(); return; }
+    if(this.actIndex>=this.actions.length){ this.startTurn(); return; }
+    const act=this.actions[this.actIndex++];
+    const actor=act.actor;
+    if(!actor.alive){ this.nextAction(); return; } // 行動前に倒れていたらスキップ
+    // 毒: 行動前にダメージ
+    if(actor.status==='poison' && actor.alive){
+      const pd=Math.max(1,Math.floor(actor.maxHp*0.08));
+      actor.hp-=pd; if(actor.hp<=0) actor.alive=false;
+      this.renderParty(); if(actor.side==='enemy') this.renderEnemies();
+      this.message([`${actor.name}は どくで ${pd}の ダメージ！`+(actor.alive?'':`\n${actor.name}は たおれた！`)],()=>{
+        if(act.type==='asleep') this.resolveSleep(actor);
+        else this.runAction(act);
+      });
+      return;
+    }
+    if(act.type==='asleep'){ this.resolveSleep(actor); return; }
+    this.runAction(act);
+  },
+  runAction(act){
+    const actor=act.actor;
+    if(!actor.alive){ this.nextAction(); return; }
+    if(act.type==='flee'){ this.doFlee(act); return; }
+    if(act.type==='enemy'){ this.doEnemyAction(actor); return; }
+    if(act.type==='attack'){ this.doAllyAttack(actor, act.target); return; }
+    if(act.type==='spell'){ this.doAllySpell(actor, act.spell, act.target); return; }
+    if(act.type==='item'){ this.doAllyItem(actor, act.item); return; }
+    if(act.type==='skill'){ this.doAllySkill(actor, act.skill); return; }
+    this.nextAction();
+  },
+  resolveSleep(actor){
+    // 30%で目を覚ます、それ以外は眠ったまま
+    if(Math.random()<0.35){ actor.status=''; this.renderParty();
+      this.message([`${actor.name}は めを さました！`],()=>this.cont());
+    } else {
+      this.message([`${actor.name}は ねむっている…`],()=>this.cont());
+    }
+  },
+  cont(){ this.nextAction(); }, // メッセージ送り後に次の行動へ
+
+  doFlee(act){
+    if(Math.random()<0.5){ audio.se('warp');
+      this.message(['にげだした！'],()=>this.endBattle()); }
+    else this.message([`${act.actor.name}は にげられなかった！`],()=>this.cont());
+  },
+  doAllyAttack(actor, target){
+    if(!target.alive) target=this.aliveEnemies()[0]; // 対象が既に倒れていたら振り直し
+    if(!target){ this.nextAction(); return; }
+    // 勇者がブルトガング装備なら多段攻撃（攻撃ごとに味方HP回復）
+    if(actor.isHero && this.p.equip.weapon==='balmung'){
+      const hits=this.rollBalmungHits();
+      this.doBalmungAttack(actor, target, hits, 1);
+      return;
+    }
+    const miss=Math.random()<0.04;
+    if(miss){ audio.se('miss'); this.fxTextOn('enemy',target.slot,'MISS','miss');
+      this.message([`${actor.name}の こうげき！\nしかし ミスした！`],()=>this.cont()); return; }
+    const crit=Math.random()<0.07;
+    let dmg=Math.max(1,actor.atk-target.def+this.randi(-2,2)); if(crit) dmg=Math.round(dmg*1.8);
+    let furyLine='';
+    if(this.furyActive(actor)){ dmg=Math.round(dmg*2); furyLine='\n🔥バーサーカーの ぶじ！ ダメージ2ばい！';
+      audio.se('flame'); this.fxFuryOn(); }
+    this.damageEnemy(target,dmg,crit,
+      `${actor.name}の こうげき！\n${target.name}に ${dmg}の ダメージ！${crit?'（かいしんの いちげき！）':''}${furyLine}`);
+  },
+  // バーサーカーのfury発動エフェクト（炎の演出）
+  fxFuryOn(){ const L=this.fxLayer();
+    for(let i=0;i<14;i++){ const f=document.createElement('div'); f.className='fx fx-flame';
+      f.style.left=(6+Math.random()*30)+'%'; f.style.top=(40+Math.random()*40)+'%';
+      f.style.animationDelay=(i*0.025)+'s'; L.appendChild(f); setTimeout(()=>f.remove(),700); } },
+  // バーサーカーのfury: HP30%以下で与ダメ2倍
+  furyActive(actor){ return actor && actor.trait==='fury' && actor.alive && actor.hp<=actor.maxHp*0.30; },
+  // ブルトガングの攻撃回数：2〜4回（2回が高確率）
+  rollBalmungHits(){
+    const r=Math.random();
+    if(r<0.60) return 2;
+    if(r<0.88) return 3;
+    return 4;
+  },
+  // ブルトガングの回復量：10〜40（15付近が高確率）
+  rollBalmungHeal(){
+    const r=Math.random();
+    if(r<0.55) return 13+Math.floor(Math.random()*5);   // 13〜17
+    if(r<0.80) return 10+Math.floor(Math.random()*3);   // 10〜12
+    if(r<0.95) return 18+Math.floor(Math.random()*8);   // 18〜25
+    return 26+Math.floor(Math.random()*15);             // 26〜40
+  },
+  // ブルトガングの多段攻撃を1ヒットずつ処理（ダメージ→回復 を回数分）
+  doBalmungAttack(actor, target, hits, n){
+    if(this.aliveEnemies().length===0){ this.cont(); return; }
+    if(!target||!target.alive){ target=this.aliveEnemies()[0]; }
+    if(!target){ this.cont(); return; }
+    const head = (n===1) ? `${actor.name}の こうげき！（${hits}れんげき！）${this.furyActive(actor)?' 🔥ぶじ！':''}\n` : '';
+    const crit=Math.random()<0.07;
+    let dmg=Math.max(1,actor.atk-target.def+this.randi(-2,2)); if(crit) dmg=Math.round(dmg*1.8);
+    if(this.furyActive(actor)){ dmg=Math.round(dmg*2); if(n===1) this.fxFuryOn(); }
+    audio.se('hit'); this.flashEnemyOn(target.slot); this.fxTextOn('enemy',target.slot,dmg,crit?'crit':'');
+    target.hp-=dmg;
+    // ボス第二形態への変身チェック（多段の途中でも一度だけ）
+    if(target.hp<=0 && target.form2 && !target.transformed){
+      this.transformBoss(target, `${head}${n}かいめ：${target.name}に ${dmg}の ダメージ！`); return;
+    }
+    let killed=false;
+    if(target.hp<=0){ target.alive=false; killed=true; this.questProgress(target.key);
+      const node=this.enemyNode(target.slot);
+      if(node){ node.classList.add('dead'); const bar=node.querySelector('.b-uhp i'); if(bar) bar.style.width='0%'; }
+    } else {
+      const node=this.enemyNode(target.slot);
+      const bar=node&&node.querySelector('.b-uhp i'); if(bar) bar.style.width=Math.max(0,target.hp/target.maxHp*100)+'%';
+    }
+    // 攻撃ごとの味方回復：最もHP割合の低い生存味方を回復
+    const heal=this.rollBalmungHeal();
+    const tgt=this.aliveAllies().sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
+    let healLine='';
+    if(tgt){ const before=tgt.hp; tgt.hp=Math.min(tgt.maxHp,tgt.hp+heal); const h=tgt.hp-before;
+      if(h>0){ this.fxHeal(); healLine=`\nまけんが ${tgt.name}の HPを ${h} かいふく！`; } }
+    this.renderParty();
+    const dmgLine=`${head}${n}かいめ：${target.name}に ${dmg}の ダメージ！${crit?'（かいしん！）':''}${killed?`\n${target.name}を たおした！`:''}${healLine}`;
+    this.message([dmgLine],()=>{
+      if(n<hits && this.aliveEnemies().length>0){ this.renderEnemies(); this.doBalmungAttack(actor, target, hits, n+1); }
+      else { this.renderEnemies(); this.cont(); }
+    });
+  },
+  doAllySpell(actor, key, target){
+    const s=SPELLS[key]; actor.mp-=s.mp;
+    if(s.type==='heal'){
+      // 最もHP割合の低い生存味方を回復
+      const tgt=this.aliveAllies().sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
+      const before=tgt.hp; tgt.hp=Math.min(tgt.maxHp,tgt.hp+s.amt); const h=tgt.hp-before;
+      audio.se('heal'); this.fxHeal(); this.renderParty();
+      this.message([`${actor.name}は ${s.name}を となえた！\n${tgt.name}の HPが ${h} かいふく！`],()=>this.cont());
+    } else {
+      if(!target||!target.alive) target=this.aliveEnemies()[0];
+      if(!target){ this.nextAction(); return; }
+      const bonus = actor.key==='sage' ? 1.5 : 1;  // 賢者は呪文が強い
+      const dmg=Math.max(1,Math.round((s.base+this.randi(-3,3))*bonus));
+      audio.se('flame'); this.fxFlameOn(target.slot);
+      this.damageEnemy(target,dmg,false,`${actor.name}は ${s.name}を となえた！\n${target.name}に ${dmg}の ダメージ！`);
+    }
+  },
+  doAllyItem(actor, k){
+    const it=ITEMS[k]; this.p.items[k]--;
+    const hero=this.allies.find(a=>a.isHero);
+    let line;
+    if(it.type==='revive'){
+      // 戦闘中の蘇生：HP0の味方ユニット全員を低確率で復活
+      const downed=this.allies.filter(a=>!a.alive);
+      const back=[];
+      downed.forEach(a=>{ if(Math.random()<it.rate){ a.alive=true; a.hp=Math.max(1,Math.floor(a.maxHp/2)); back.push(a.name); } });
+      audio.se(back.length?'levelup':'miss'); if(back.length) this.fxHeal(); this.renderParty();
+      const msg = back.length
+        ? `${actor.name}は ${it.name}を つかった。\n${back.join('・')}が いきかえった！`
+        : `${actor.name}は ${it.name}を つかった。\n…しかし だれも いきかえらなかった。`;
+      this.message([msg],()=>this.cont());
+      return;
+    }
+    if(it.type==='heal'){ const b=hero.hp; hero.hp=Math.min(hero.maxHp,hero.hp+it.amt);
+      line=`ゆうしゃの HPが ${hero.hp-b} かいふく！`; this.fxHeal(); }
+    else if(it.type==='cure'){ hero.status=''; line='じょうたいいじょうが なおった！'; }
+    else { const b=hero.mp; hero.mp=Math.min(hero.maxMp,hero.mp+it.amt); line=`ゆうしゃの MPが ${hero.mp-b} かいふく！`; }
+    audio.se('heal'); this.renderParty();
+    this.message([`${actor.name}は ${it.name}を つかった。\n${line}`],()=>this.cont());
+  },
+  doAllySkill(actor, k){
+    const s=SKILLS[k];
+    if(k==='kachikochi'){
+      if(s.mp) actor.mp=Math.max(0,actor.mp-s.mp);
+      this.guardAllTurns=3;                 // 味方全員、以後3ターン被ダメ20%カット
+      audio.se('heal'); this.fxHeal(); this.renderParty();
+      this.message([
+        `${actor.name}は とくぎ 「かちこち」を となえた！`,
+        'みかた ぜんいんの からだが かたく かがやいた！',
+        '3ターン、うける ダメージが かるくなる。'
+      ],()=>this.cont());
+      return;
+    }
+    if(k==='provoke'){
+      actor._provokeUsed=true;              // 1戦闘1回
+      actor._defBonus=(actor._defBonus||0)+30; // 防御+30
+      this.provokeTarget=actor;             // 敵の攻撃をこのユニットに集中
+      this.provokeTurns=2;                  // 2ターン持続
+      audio.se('select'); this.shakeStage(); this.renderParty();
+      this.message([
+        `${actor.name}は 「ちょうはつ」した！`,
+        `${actor.name}に てきの こうげきが あつまる！`,
+        `${actor.name}の ぼうぎょが おおきく あがった！（2ターン）`
+      ],()=>this.cont());
+      return;
+    }
+    this.nextAction();
+  },
+  doEnemyAction(enemy){
+    // あぶないみずぎ装備中：低確率で敵を魅了し行動不能に
+    const charmRate = GEAR[this.p.equip.armor] && GEAR[this.p.equip.armor].charm;
+    if(charmRate && Math.random()<charmRate){
+      audio.se('select');
+      this.message([`${enemy.name}は ゆうしゃに みとれて うごけない！`],()=>this.cont());
+      return;
+    }
+    let target;
+    if(this.provokeTurns>0 && this.provokeTarget && this.provokeTarget.alive){
+      target = (Math.random()<0.85) ? this.provokeTarget : this.pick(this.aliveAllies());
+    } else {
+      target=this.pick(this.aliveAllies());
+    }
+    if(!target){ this.nextAction(); return; }
+    // ジェネラルの「かばう」：瀕死の仲間を高確率でかばい、被ダメ半分
+    let coverMsg='';
+    let coverCut=1;
+    const general=this.aliveAllies().find(a=>a.trait==='cover');
+    if(general && general!==target && target.hp<=target.maxHp*0.40 && Math.random()<0.80){
+      coverMsg=`${general.name}が ${target.name}を かばった！\\n`;
+      target=general;
+      coverCut=0.5; // かばうと被ダメ半分
+    }
+    const tdef = target.def + (target._defBonus||0);
+    const cut = (this.guardAllTurns>0 ? 0.8 : 1) * coverCut;  // かちこち20%カット × かばう半分
+    this.enemyAtkMotionOn(enemy.slot);
+    // 敵の呪文
+    if(enemy.spell && Math.random()<0.35){
+      const sp=SPELLS[enemy.spell] || {name:'やみのほのお',base:enemy.spell==='darkflame'?40:18};
+      let dmg=Math.max(1,Math.round(((sp.base||20)+this.randi(-3,3)-Math.floor(tdef/3))*cut));
+      target.hp-=dmg; if(target.hp<=0) target.alive=false;
+      audio.se('flame'); this.shakeStage(); this.renderParty();
+      this.message([coverMsg+`${enemy.name}は ${sp.name||'やみのほのお'}を となえた！\n${target.name}に ${dmg}の ダメージ！`+(target.alive?'':`\n${target.name}は たおれた！`)],()=>this.cont());
+      return;
+    }
+    let dmg=Math.max(1,Math.round((enemy.atk-Math.floor(tdef/2)+this.randi(-2,2))*cut));
+    target.hp-=dmg; if(target.hp<=0) target.alive=false;
+    audio.se('damage'); this.shakeStage(); this.renderParty();
+    let extra='';
+    // 状態異常の付与（対象が生存・無状態のときのみ）
+    if(target.alive && enemy.inflict && !target.status && Math.random()<enemy.inflict.rate){
+      target.status=enemy.inflict.status;
+      const sname={poison:'どく',sleep:'ねむり'}[target.status]||'いじょう';
+      extra=`\n${target.name}は ${sname}に かかった！`;
+    }
+    this.message([coverMsg+`${enemy.name}の こうげき！\n${target.name}に ${dmg}の ダメージ！`+(target.alive?'':`\n${target.name}は たおれた！`)+extra],()=>this.cont());
+  },
+
+  damageEnemy(target,dmg,crit,msg){
+    // 先に「今の」対象ノードへ演出を乗せる（renderで作り直す前に）
+    audio.se('hit');
+    this.flashEnemyOn(target.slot); this.fxTextOn('enemy',target.slot,dmg,crit?'crit':'');
+    target.hp-=dmg;
+    // ★ボスの第二形態：HP0でも倒れず「真の姿」に変身（一度だけ）
+    if(target.hp<=0 && target.form2 && !target.transformed){
+      this.transformBoss(target,msg); return;
+    }
+    if(target.hp<=0){ target.alive=false;
+      this.questProgress(target.key);
+      const node=this.enemyNode(target.slot);
+      if(node){ node.classList.add('dead'); // HPバーだけ即0に
+        const bar=node.querySelector('.b-uhp i'); if(bar) bar.style.width='0%'; }
+      this.message([msg+`\n${target.name}を たおした！`],()=>{ this.renderEnemies(); this.cont(); });
+    } else {
+      const node=this.enemyNode(target.slot);
+      const bar=node&&node.querySelector('.b-uhp i'); if(bar) bar.style.width=Math.max(0,target.hp/target.maxHp*100)+'%';
+      this.message([msg],()=>this.cont());
+    }
+  },
+  // ボスを第二形態へ変身させる
+  transformBoss(target,msg){
+    target.transformed=true;
+    target.hp=target.maxHp;          // HP全回復
+    target.atk=Math.round(target.atk*1.3);
+    target.def=target.def+10;
+    target.spd=target.spd+6;
+    target.name=target.form2.name;   // 名前変更
+    if(target.form2.art) target.art=target.form2.art;
+    if(target.form2.spell) target.spell=target.form2.spell;
+    audio.se('damage'); this.shakeStage();
+    audio.bgm('garzos2');
+    const fallName = target.key==='blight' ? 'おおもとの やみ' : 'ガルゾス';
+    this.message([msg, `${fallName}は たおれた…`,'…かに みえた！','やみの ちからが あふれだす！',`${target.name}が しんの すがたを あらわした！`],()=>{
+      this.renderEnemies(); this.cont();
+    });
+  },
+
+  victory(){
+    if(this.isBossBattle){
+      this.syncAlliesBack();
+      const isElf = this.enemies.some(e=>e.key==='blight');
+      if(isElf){ this.p.flags.elfCleared=true; this.elfEnding(); return; }
+      this.p.flags.won=true; this.ending(); return;
+    }
+    audio.se('win'); this.syncAlliesBack();
+    const totalXp=this.enemies.reduce((s,e)=>s+e.xp,0);
+    const totalGold=this.enemies.reduce((s,e)=>s+e.gold,0);
+    this.p.gold+=totalGold;
+    const heroDown = this.p.hp<=0;
+    if(!heroDown) this.p.xp+=totalXp;   // HP0のキャラには経験値が入らない
+    const msgs=[`まものを やっつけた！`,`けいけんち ${heroDown?0:totalXp}  ◈${totalGold}を てにいれた。`];
+    if(heroDown) msgs.push('たおれた もの には けいけんちが はいらない…');
+    const lv=this.checkLevel(); if(lv) msgs.push(...lv);
+    // 賢者の蘇生: 賢者が仲間にいて生存、HP0の仲間が残っていたら蘇生
+    const reviveMsgs=this.sageRevive();
+    if(reviveMsgs.length) msgs.push(...reviveMsgs);
+    // エルフのかご：戦闘後、味方全員のHPを30回復
+    const basketMsgs=this.tickElfBasket();
+    if(basketMsgs.length) msgs.push(...basketMsgs);
+    // ひのきのぼうきれ装備中：戦闘ごとにカウント。100回でブルトガングに覚醒
+    const twigMsgs=this.tickTwig();
+    if(twigMsgs.length) msgs.push(...twigMsgs);
+    this.updateStrip(); this.message(msgs,()=>this.endBattle());
+  },
+  // エルフのかご：戦闘後、生存している味方全員のHPを30回復
+  tickElfBasket(){
+    const p=this.p;
+    if(!p.flags.elfBasket) return [];
+    const HEAL=30; const names=[];
+    // 勇者（生存時のみ）
+    if(p.hp>0 && p.hp<p.maxHp){ const b=p.hp; p.hp=Math.min(p.maxHp,p.hp+HEAL); if(p.hp>b) names.push('ゆうしゃ'); }
+    // 仲間（生存時のみ）
+    p.party.forEach(key=>{ const st=p.allyState[key];
+      if(st && st.hp>0 && st.hp<st.maxHp){ const b=st.hp; st.hp=Math.min(st.maxHp,st.hp+HEAL); if(st.hp>b) names.push(ALLIES[key].name); }
+    });
+    if(!names.length) return [];
+    audio.se('heal');
+    return [`エルフのかごの ちからで みかたの HPが ${HEAL} かいふくした！`];
+  },
+  // ひのきのぼうきれの戦闘カウントを進める。100回で覚醒
+  tickTwig(){
+    const p=this.p;
+    if(p.equip.weapon!=='twig') return [];
+    p.flags.twigBattles=(p.flags.twigBattles||0)+1;
+    const left=100-p.flags.twigBattles;
+    if(left>0){
+      return [`ひのきのぼうきれが かすかに ふるえている…（あと ${left}かい）`];
+    }
+    // 覚醒
+    p.equip.weapon='balmung';
+    if(!p.ownedGear.includes('balmung')) p.ownedGear.push('balmung');
+    p.flags.cursed=true; // ブルトガングも外せない（呪い武器）
+    audio.se('win');
+    return ['ひのきのぼうきれが まばゆく かがやいた！','…これは ただの ぼうきれ などではない！','でんせつの まけん「ブルトガング」だった！','こうげきりょくが おおきく あがった！'];
+  },
+  // 賢者がHP0の仲間（勇者含む）を蘇生。賢者がいない/賢者がHP0なら何もしない
+  sageRevive(){
+    const p=this.p;
+    if(!p.party.includes('sage')) return [];
+    const sage=p.allyState['sage'];
+    if(!sage || sage.hp<=0) return []; // 賢者自身が倒れていたら不可
+    const out=[];
+    // 蘇生対象を集める（勇者＋仲間、ただし賢者本人は除外＝生存中なので対象外）
+    const downed=[];
+    if(p.hp<=0) downed.push('hero');
+    p.party.forEach(key=>{ if(key!=='sage' && p.allyState[key].hp<=0) downed.push(key); });
+    if(downed.length===0) return [];
+    out.push('けんじゃ「しかたないのぉ～ ホレっ」');
+    downed.forEach(key=>{
+      if(key==='hero'){ p.hp=Math.floor(p.maxHp/2); out.push(`ゆうしゃは いきかえった！`); }
+      else { const st=p.allyState[key]; st.hp=Math.floor(st.maxHp/2); out.push(`${ALLIES[key].name}は いきかえった！`); }
+    });
+    audio.se('heal');
+    return out;
+  },
+  checkLevel(){ const out=[]; let need=NEED_XP(this.p.lv);
+    while(this.p.xp>=need){ this.p.xp-=need; this.p.lv++;
+      this.p.maxHp+=8; this.p.maxMp+=4; this.p.baseAtk+=1; this.p.baseDef+=1;
+      this.p.hp=this.p.maxHp; this.p.mp=this.p.maxMp;
+      out.push(`ゆうしゃの レベルが ${this.p.lv}に あがった！`);
+      const l=LEARN[this.p.lv]; if(l&&!this.p.spells.includes(l)){ this.p.spells.push(l); out.push(`じゅもん「${SPELLS[l].name}」を おぼえた！`); }
+      need=NEED_XP(this.p.lv);
+    }
+    // 仲間の成長: 戦闘終了時にHP0の仲間は経験値が入らない（=成長も蘇生もしない）。
+    // 生き残っている仲間のみ勇者レベルに追従し、実際にレベルが上がった本人だけ全回復する。
+    this.p.party.forEach(key=>{
+      const st=this.p.allyState[key], a=ALLIES[key];
+      if(st.hp<=0) return;              // 倒れている仲間は経験値が入らない→レベルアップしない
+      let leveled=false;
+      while(st.lv<this.p.lv){ st.lv++; leveled=true;
+        st.maxHp+=6; st.maxMp+=(a.maxMp>0?3:0); st.atk+=1; st.def+=1;
+        const learn=a.learn&&a.learn[st.lv];
+        if(learn && !st.spells.includes(learn)){ st.spells.push(learn); out.push(`${a.name}は じゅもん「${SPELLS[learn].name}」を おぼえた！`); }
+      }
+      if(leveled){
+        st.hp=st.maxHp; st.mp=st.maxMp;  // レベルが上がった本人だけ全回復
+        out.push(`${a.name}の レベルが ${st.lv}に あがった！`);
+      }
+    });
+    if(out.length) audio.se('levelup'); return out.length?out:null;
+  },
+  defeat(){ this.syncAlliesBack();
+    audio.stopBgm(); audio.se('defeat');
+    const needWarrior = !this.p.flags.joinWarrior;
+    // 戦闘画面では全滅の事実だけ表示
+    this.message(['パーティは ぜんめつした…','きづくと きょうかいに いた。','しょじきんが はんぶんに なった。'],()=>{
+      this.p.gold=Math.floor(this.p.gold/2);
+      this.p.hp=this.p.maxHp; this.p.mp=this.p.maxMp;
+      this.p.party.forEach(key=>{ const st=this.p.allyState[key]; st.hp=st.maxHp; st.mp=st.maxMp; });
+      this.tower=null; this.p.towerReturn=null;
+      // 神官が諭したので、後で町に入っても明るい噂アナウンスは出さない
+      if(needWarrior && !this.p.seen.includes('town1first')) this.p.seen.push('town1first');
+      this.p.map='town1'; this.p.x=10; this.p.y=5; this.p.dir='up';
+      this.endBattle();
+      // 町に着いてから神官が諭す（せんし未加入時のみ）
+      if(needWarrior) this.message(['しんかん「ひとりでは むりも ある。」','しんかん「この まちで なかまを さがしては どうかな?」']);
+    }); },
+  endBattle(){ this.enemies=null; this.allies=null; this.cmdCtx=''; audio.bgm(this.bgmFor());
+    document.getElementById('battle').classList.remove('show'); this.enterField();
+  },
+  ending(){ audio.stopBgm(); audio.se('win');
+    document.getElementById('battle').classList.remove('show'); this.mode='message';
+    document.getElementById('msgBox').classList.add('show');
+    // ガルゾス撃破フラグ→城に姫が並ぶ
+    this.p.flags.won=true;
+    // 城へ転送（救出後の演出舞台）
+    this.p.map='castle'; this.p.x=5; this.p.y=4; this.p.dir='down';
+    this.message([
+      '闇の王 ガルゾスは ひかりとなって きえさった…',
+      'ろうやの おくから フィーナひめを すくいだした。',
+      'まばゆい ひかりが ふたりを つつむ──',
+      '…きづくと、そこは アルディアじょうの だいひろま だった。',
+    ],()=>{ audio.bgm('castle'); this.draw(); this.setPlace();
+      this.message([
+        'アルディアおう「おお、ゆうしゃ よ！ よくぞ せかいを すくった！」',
+        'フィーナ「ありがとう ございます、ゆうしゃ さま。」',
+        'フィーナ「あなたは わたしたちの きぼうです。」',
+        'せかいに ひかりが もどり、ひとびとは よろこびに わいた。',
+      ],()=>this.elfPlea());
+    });
+  },
+  // エルフの「助けて」の声 → 世界樹の危機 → はい/いいえ
+  elfPlea(){
+    audio.stopBgm();
+    this.message([
+      '──と、そのとき。',
+      'どこからともなく かぼそい こえが ひびいた。',
+      '「…たすけて……ゆうしゃ さま……」',
+      '「われらは エルフ。とおい もりの たみ。」',
+      '「せかいじゅが かれ、われらの くにが きえようと しています。」',
+      '「やみの ねが せかいじゅの ねもとを むしばんで いるのです。」',
+      'フィーナ「ゆうしゃ さま…どうか、エルフの くにを すくって あげて。」',
+      'エルフの くにへ むかいますか？',
+    ],()=>{
+      this.cmdCtx='field';
+      this.cmdItems=[
+        {label:'はい むかう',act:()=>{ this.closeCmd(); this.elfAccept(); }},
+        {label:'いいえ',act:()=>{ this.closeCmd(); this.elfDecline(); }},
+      ]; this.cmdSel=0; this.renderCmd('cmdBox');
+    });
+  },
+  // 「はい」: クエスト受諾。城に戻り、塔20階に入口が出現するようになる
+  elfAccept(){
+    this.p.flags.won=true;
+    this.p.flags.elfQuest=true;
+    audio.se('levelup');
+    this.message([
+      'ゆうしゃは うなずいた。',
+      'フィーナ「ありがとう…！ あなたなら きっと。」',
+      'アルディアおう「エルフの くにへの みちは とざされて おる。」',
+      'アルディアおう「だが むげんの とう、その 20かいに──」',
+      'アルディアおう「いせかいへの もんが ひらく という いいつたえが ある。」',
+      'フィーナ「むげんの とうを のぼり、エルフの くにへ。」',
+      '― あたらしい ぼうけんが はじまる ―',
+    ],()=>{
+      // 城のフィールドに戻して操作可能に（リロードしない＝冒険継続）
+      this.p.map='world'; this.p.x=10; this.p.y=4; this.p.dir='down';
+      this.save(); this.enterField(); audio.bgm(this.bgmFor());
+      this.message(['むげんの とうの 20かいを めざそう。','とうの 20かいで 「エルフのくに」を えらべる。']);
+    });
+  },
+  // 「いいえ」: 別の者が現れ、姫がついていく。姫は画面から消える
+  elfDecline(){
+    audio.stopBgm();
+    this.message([
+      'ゆうしゃは くびを よこに ふった。',
+      'フィーナ「…そう、ですか。」',
+      'やがて きたの もりから、ひとりの わかものが あらわれた。',
+      'わかもの「エルフの こえは きいた。…わたしが むかいます。」',
+      'フィーナ「あなたは…！」',
+      'フィーナ「わたしも ついていきます。」',
+      'フィーナ「ゆうしゃ さま、いままで ありがとう ございました。」',
+    ],()=>{
+      // 姫が去る：城の表示から姫を消す
+      this.p.flags.princessLeft=true;
+      this.p.flags.won=true;            // 物語は進行（クリア扱い）
+      audio.se('warp');
+      // 城を再描画して、姫が消えた様子を見せる
+      if(this.p.map==='castle') this.draw();
+      this.message([
+        'フィーナは わかものと ともに もりへ きえていった。',
+        'だいひろまには、おうと あなただけが のこされた。',
+        'のこされた あなたの ぼうけんは、ここで しずかに とじた。',
+        'そして、でんせつが　はじまる',
+      ],()=>{ this.save(); location.reload(); });
+    });
+  },
+  // エルフ国ボス撃破後：女王のもとへ転送→会話→帰還の扉が世界樹近くに出現
+  elfEnding(){ audio.stopBgm(); audio.se('win');
+    document.getElementById('battle').classList.remove('show'); this.mode='message';
+    document.getElementById('msgBox').classList.add('show');
+    // 女王のいる世界樹の前へ転送（世界樹Yは(6,6)、その下(6,7)に立つ）
+    this.p.map='elf'; this.p.x=6; this.p.y=7; this.p.dir='up';
+    this.message([
+      'せかいじゅを むしばむ やみの ねは ついえさった。',
+      'かれていた せかいじゅに、みどりの ひかりが もどっていく──',
+      'まばゆい ひかりに つつまれ、ゆうしゃは せかいじゅの まえへ いざなわれた。',
+    ],()=>{ audio.bgm('elf'); this.draw(); this.setPlace();
+      this.message([
+        'エルフの じょおう「ひかりの ゆうしゃ よ。よくぞ もどって きました。」',
+        'エルフの じょおう「わたくしは この もりを おさめる じょおう。」',
+        'エルフの じょおう「なんじの ゆうきが、せかいじゅを すくいました。」',
+        'エルフの じょおう「もりの たみ いちどう、こころより かんしゃ します。」',
+        'エルフの じょおう「なんじの なは、この もりに えいえんに きざまれよう。」',
+        'エルフの じょおう「さあ、せかいじゅに むかって ください。」',
+        'エルフの じょおう「そこに、なんじの くにへ もどる とびらが あらわれる でしょう。」',
+      ],()=>{
+        // 帰還の扉を出現させ、フィールド操作に確実に戻す
+        this.p.flags.elfReturnDoor=true;
+        audio.bgm(this.bgmFor());
+        this.message(['せかいじゅの ねもとに、ひかりの とびらが あらわれた。','とびらに ふれれば、もとの くにへ もどれる。'],()=>{
+          this.enterField();   // メッセージを閉じた後に field へ（方向キーが効くように）
+          this.save();
+        });
+      });
+    });
+  },
+
+  /* ---- 戦闘の描画 ---- */
+  renderEnemies(){
+    const wrap=document.getElementById('bEnemies'); wrap.innerHTML='';
+    const living=this.enemies.filter(e=>e.alive);
+    const size = living.length>=3?64:(living.length===2?80:96);
+    living.forEach(e=>{
+      const d=document.createElement('div'); d.className='b-unit';
+      d.dataset.slot=e.slot;
+      d.innerHTML=`<div class="b-art" style="font-size:${size}px;height:${size}px">${e.art}</div>
+        <div class="b-uname">${e.name}</div>
+        <div class="b-uhp"><div class="bar"><i style="width:${Math.max(0,e.hp/e.maxHp*100)}%"></i></div></div>`;
+      wrap.appendChild(d);
+    });
+  },
+  renderParty(){
+    const wrap=document.getElementById('bParty'); wrap.innerHTML='';
+    const stIcon={poison:'☠',sleep:'💤',paralyze:'⚡'};
+    this.allies.forEach(a=>{
+      const active=(this.curActor&&this.curActor===a&&this.cmdCtx==='battle');
+      const d=document.createElement('div');
+      d.className='p-unit'+(active?' active':'')+(a.alive?'':' downed');
+      const mpLine=a.maxMp>0?`<div>MP ${a.mp}/${a.maxMp}</div><div class="hbar mp"><i style="width:${a.mp/a.maxMp*100}%"></i></div>`:'';
+      const badge=a.status&&a.alive?` <span style="color:#c5f">${stIcon[a.status]||''}</span>`:'';
+      // バーサーカー：HP75%以下でゲージが変色し、30%以下(fury発動圏)でさらに強調
+      const ratio=a.hp/a.maxHp;
+      let hpCls='hbar hp';
+      let furyTag='';
+      if(a.trait==='fury' && a.alive){
+        if(ratio<=0.30){ hpCls+=' fury-on'; furyTag=' <span class="fury-badge">🔥ぶじ</span>'; }
+        else if(ratio<=0.75){ hpCls+=' fury-warn'; }
+      }
+      d.innerHTML=`<div class="pn">${a.name} <span class="pn-lv">Lv${a.lv}</span>${badge}${furyTag}</div>
+        <div>HP ${Math.max(0,a.hp)}/${a.maxHp}</div>
+        <div class="${hpCls}"><i style="width:${Math.max(0,ratio*100)}%"></i></div>${mpLine}`;
+      wrap.appendChild(d);
+    });
+  },
+
+  /* ---- 戦闘エフェクト（slot指定対応） ---- */
+  enemyNode(slot){ return document.querySelector(`#bEnemies .b-unit[data-slot="${slot}"]`); },
+  flashEnemyOn(slot){ const n=this.enemyNode(slot); if(n){ n.classList.remove('hit'); void n.offsetWidth; n.classList.add('hit'); }
+    const f=document.getElementById('bFlash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); },
+  enemyAtkMotionOn(slot){ const n=this.enemyNode(slot); if(n){ n.classList.remove('atk'); void n.offsetWidth; n.classList.add('atk'); } },
+  shakeStage(){ const s=document.getElementById('bShake');
+    s.classList.remove('shake'); void s.offsetWidth; s.classList.add('shake'); },
+  fxLayer(){ return document.getElementById('bShake'); },
+  fxTextOn(sideType,slot,val,cls){
+    const L=this.fxLayer(); const d=document.createElement('div');
+    d.className='fx fx-dmg '+(cls||''); d.textContent=val;
+    const n=this.enemyNode(slot);
+    if(n){ const r=n.getBoundingClientRect(), lr=L.getBoundingClientRect();
+      d.style.left=(r.left-lr.left+r.width/2)+'px'; d.style.top=(r.top-lr.top+10)+'px'; }
+    else { d.style.left='50%'; d.style.top='32%'; }
+    L.appendChild(d); setTimeout(()=>d.remove(),1000);
+  },
+  fxFlameOn(slot){ const L=this.fxLayer(); const n=this.enemyNode(slot);
+    let cx=50,cy=32;
+    if(n){ const r=n.getBoundingClientRect(), lr=L.getBoundingClientRect();
+      cx=(r.left-lr.left+r.width/2)/lr.width*100; cy=(r.top-lr.top+r.height/2)/lr.height*100; }
+    for(let i=0;i<10;i++){ const f=document.createElement('div'); f.className='fx fx-flame';
+      f.style.left=(cx-6+Math.random()*12)+'%'; f.style.top=(cy-6+Math.random()*12)+'%';
+      f.style.animationDelay=(i*0.03)+'s'; L.appendChild(f); setTimeout(()=>f.remove(),700); } },
+  fxHeal(){ const L=this.fxLayer();
+    for(let i=0;i<8;i++){ const s=document.createElement('div'); s.className='fx fx-spark';
+      s.style.left=(8+Math.random()*30)+'%'; s.style.top=(8+Math.random()*30)+'%';
+      s.style.animationDelay=(i*0.05)+'s'; L.appendChild(s); setTimeout(()=>s.remove(),900); } },
+
+  /* ---- 店 ---- */
+  openShop(type){ this.shopType=type; const s=SHOPS[type];
+    document.getElementById('shop').classList.add('show');
+    document.getElementById('shopTitle').textContent=s.title; this.renderShop(); },
+  renderShop(){ const s=SHOPS[this.shopType];
+    document.getElementById('shopGold').textContent=this.p.gold;
+    const list=document.getElementById('shopList'); list.innerHTML='';
+    s.goods.forEach((g,i)=>{
+      let name,det,price,owned=false;
+      if(g.kind==='gear'){ const ge=GEAR[g.id]; name=ge.name; price=ge.price;
+        det=ge.slot==='weapon'?`こうげき+${ge.atk}`:`しゅび+${ge.def}`;
+        owned=this.p.ownedGear.includes(g.id);
+      } else { const it=ITEMS[g.id]; name=it.name; price=it.price; det=it.desc; }
+      const row=document.createElement('div'); row.className='shop-row';
+      const btn=owned?`<span style="color:#888;font-size:12px">しょゆうずみ</span>`:`<button class="buy" data-i="${i}">かう</button>`;
+      row.innerHTML=`<div><b>${name}</b><small>${det}</small></div><div style="display:flex;align-items:center"><span class="price">◈${price}</span>${btn}</div>`;
+      list.appendChild(row);
+    });
+    list.querySelectorAll('.buy').forEach(b=>b.onclick=()=>this.buy(+b.dataset.i));
+  },
+  buy(i){ const g=SHOPS[this.shopType].goods[i];
+    const price = g.kind==='gear'?GEAR[g.id].price:ITEMS[g.id].price;
+    if(this.p.gold<price){ this.toast('おかねが たりない'); return; }
+    if(g.kind==='gear'){
+      if(this.p.ownedGear.includes(g.id)){ this.toast('もう もっている'); return; }
+      this.p.gold-=price; audio.se('coin');
+      this.p.ownedGear.push(g.id);
+      // 買ったら自動装備
+      const slot=GEAR[g.id].slot; this.p.equip[slot]=g.id;
+      this.toast(`${GEAR[g.id].name}を そうび した`);
+    } else {
+      this.p.gold-=price; audio.se('coin');
+      this.p.items[g.id]=(this.p.items[g.id]||0)+1; this.toast(`${ITEMS[g.id].name}を かった`);
+    }
+    this.renderShop(); this.updateStrip();
+  },
+  closeShop(){ document.getElementById('shop').classList.remove('show'); },
+
+  /* ===================== ドット絵 描画 ===================== */
+  draw(){
+    if(this.mode==='title') return;
+    const ctx=this.ctx,t=this.tile,m=this.curMap(),half=Math.floor(VIEW/2);
+    const camX=this.p.x-half, camY=this.p.y-half;
+    ctx.clearRect(0,0,t*VIEW,t*VIEW);
+    for(let vy=0;vy<VIEW;vy++) for(let vx=0;vx<VIEW;vx++){
+      const mx=camX+vx,my=camY+vy,px=vx*t,py=vy*t;
+      let ch=' ';
+      if(my>=0&&my<m.rows.length&&mx>=0&&mx<m.rows[0].length) ch=m.rows[my][mx];
+      else { ctx.fillStyle='#000'; ctx.fillRect(px,py,t,t); continue; }
+      this.drawTile(ctx,ch,px,py,t,m.indoor,mx,my);
+    }
+    // 宝箱
+    (CHESTS.filter(c=>c.map===this.p.map)).forEach(c=>{
+      if(this.p.chests.includes(c.id)) return;
+      const vx=c.x-camX,vy=c.y-camY;
+      if(vx>=0&&vx<VIEW&&vy>=0&&vy<VIEW) this.dotChest(ctx,vx*t,vy*t,t);
+    });
+    // マップ切替タイル（出口・階段・建物入口）：点滅させず別色で常時表示
+    WARPS.filter(w=>w.map===this.p.map).forEach(w=>{
+      const vx=w.x-camX,vy=w.y-camY;
+      if(vx<0||vx>=VIEW||vy<0||vy>=VIEW) return;
+      const ch = (m.rows[w.y]&&m.rows[w.y][w.x])||' ';
+      this.drawWarpTile(ctx,vx*t,vy*t,t,ch);
+    });
+    // NPC
+    (this.visibleNpcs(this.p.map)).forEach(n=>{ const vx=n.x-camX,vy=n.y-camY;
+      if(vx>=0&&vx<VIEW&&vy>=0&&vy<VIEW){ ctx.font=`${t*0.62}px serif`;
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(n.emoji,vx*t+t/2,vy*t+t/2+1); } });
+    // エルフ国の帰還の扉（出現中のみ）(6,8)に光るマーカー
+    if(this.p.map==='elf' && this.p.flags.elfReturnDoor){
+      const vx=6-camX, vy=8-camY;
+      if(vx>=0&&vx<VIEW&&vy>=0&&vy<VIEW){
+        const px=vx*t, py=vy*t, u=t/8;
+        ctx.fillStyle='rgba(150,220,255,.85)'; ctx.fillRect(px+u, py, u*6, u*8);
+        ctx.fillStyle='rgba(220,245,255,.95)'; ctx.fillRect(px+2*u, py+u, u*4, u*6);
+        ctx.font=`${t*0.6}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('🚪', px+t/2, py+t/2+1);
+      }
+    }
+    // プレイヤー
+    this.dotHero(ctx,half*t,half*t,t,this.p.dir,this.frame);
+  },
+  drawTile(ctx,ch,px,py,t,indoor,mx,my){
+    const base = indoor?'#3a2f28':'#4a9d4f';
+    ctx.fillStyle = ch==='~'?'#2f6fc4' : (ch==='#'?'#6a6258' : base);
+    ctx.fillRect(px,py,t,t);
+    const u=t/8;
+    const dot=(c,arr)=>{ ctx.fillStyle=c; arr.forEach(([x,y,w=1,h=1])=>ctx.fillRect(px+x*u,py+y*u,w*u,h*u)); };
+    if(ch==='~'){ dot('#5a92e0',[[1,1],[5,1],[3,3],[6,4],[2,5],[0,3],[4,6],[7,2]]); }
+    else if(ch==='#'){ dot('#4f483f',[[0,2,8,1],[0,5,8,1],[2,0,1,2],[5,3,1,2],[1,6,1,2],[6,6,1,2]]); }
+    else if(indoor){ dot('#2e251f',[[1,1],[5,2],[3,5],[6,6],[2,7],[7,3]]); }
+    else { dot('#3d8442',[[1,1],[5,2],[3,4],[6,5],[2,6],[7,1]]); dot('#57b35c',[[2,2],[6,1],[4,5]]); }
+
+    if(ch==='T'){ dot('#2e7d36',[[2,0,4,1],[1,1,6,3],[2,4,4,1]]); dot('#1f5e28',[[2,1],[5,2],[3,3]]); dot('#6b4a2a',[[3,5,2,3]]); }
+    else if(ch==='M'){ dot('#8a8278',[[3,1,2,1],[2,2,4,1],[1,3,6,1],[1,4,6,2]]); dot('#6a625a',[[3,2],[2,4],[5,4],[4,5]]); dot('#b0a89a',[[3,1],[4,2]]); }
+    else if(ch==='B'){ ctx.fillStyle='#7a5530'; ctx.fillRect(px,py,t,t); dot('#5a3d22',[[0,1,8,1],[0,3,8,1],[0,5,8,1],[0,7,8,1]]); }
+    else if(ch==='>'){ dot('#2e251f',[[1,1,6,1],[2,2,5,1],[3,3,4,1],[4,4,3,1],[5,5,2,1]]); dot('#1a140f',[[1,2,1,5],[2,3,1,4]]); }
+    else if(ch==='D'){ if(this.doorIsOpen()){ ctx.fillStyle=base; ctx.fillRect(px,py,t,t); dot('#2e251f',[[1,1],[5,2],[3,5]]); }
+      else { dot('#6b4a2a',[[1,0,6,8]]); dot('#4a3018',[[1,0,1,8],[6,0,1,8],[3,0,2,1]]); dot('#d9b25b',[[5,4]]); } }
+    else if(ch==='C'){
+      if(this.p.map==='tower'){ // 塔の宝箱
+        const opened=this.tower&&this.tower.opened&&this.tower.opened[mx+','+my];
+        if(opened){ dot('#5a3a18',[[1,4,6,3]]); dot('#3a2410',[[1,3,6,1]]); }
+        else this.dotChest(ctx,px,py,t);
+      } else this.dotBuilding(ctx,px,py,t,'castle');
+    }
+    else if(ch==='V'){ this.dotBuilding(ctx,px,py,t,'town'); }
+    else if(ch==='W'){ this.dotBuilding(ctx,px,py,t,'village'); }
+    else if(ch==='E'){ this.dotBuilding(ctx,px,py,t,'cave'); }
+    else if(ch==='O'){ this.dotBuilding(ctx,px,py,t,'tower'); }
+    else if(ch==='P'){ this.dotBuilding(ctx,px,py,t,'jobcastle'); }
+    else if(ch==='Y'){ // 枯れた世界樹
+      dot('#4a3526',[[3,4,2,4]]);                       // みき
+      dot('#6a4a32',[[2,5,1,2],[5,5,1,2]]);
+      dot('#5a4030',[[1,1,2,1],[2,0,4,1],[5,1,2,1],[1,2,6,2]]); // 枯れ枝
+      dot('#3a2818',[[2,2],[5,2],[3,3],[4,1]]);
+    }
+  },
+  dotBuilding(ctx,px,py,t,kind){
+    const u=t/8;
+    const d=(c,arr)=>{ ctx.fillStyle=c; arr.forEach(([x,y,w=1,h=1])=>ctx.fillRect(px+x*u,py+y*u,w*u,h*u)); };
+    if(kind==='castle'){ d('#9a9288',[[1,2,6,6]]); d('#6a625a',[[1,1,1,1],[3,1,1,1],[5,1,1,1],[7,1,1,1]]);
+      d('#3a322a',[[3,4,2,4]]); d('#d9b25b',[[3,2],[5,2]]); }
+    else if(kind==='town'){ d('#b04030',[[1,2,6,2]]); d('#c85040',[[2,1,4,1]]); d('#c8b090',[[1,4,6,4]]);
+      d('#5a3a22',[[3,5,2,3]]); d('#8de0e8',[[1,5],[6,5]]); }
+    else if(kind==='village'){ d('#7a5a35',[[1,3,6,5]]); d('#9a7a45',[[1,2,6,1]]); d('#5a3a22',[[3,5,2,3]]);
+      d('#c8a85a',[[2,3,1,1],[5,3,1,1]]); }
+    else if(kind==='cave'){ d('#3a322a',[[1,2,6,6]]); d('#0a0806',[[2,4,4,4],[3,3,2,1]]); d('#5a524a',[[1,2,6,1]]); }
+    else if(kind==='tower'){ d('#5a4a6a',[[2,0,4,8]]); d('#6a5a7a',[[1,1,1,1],[3,1,1,1],[5,1,1,1],[7,1,1,1]]);
+      d('#3a2e4a',[[3,4,2,4]]); d('#b080e0',[[3,2],[3,5]]); d('#d9b25b',[[3,0,2,1]]); }
+    else if(kind==='jobcastle'){ d('#c8a83a',[[1,2,6,6]]); d('#e8c84a',[[1,1,1,1],[3,1,1,1],[5,1,1,1],[7,1,1,1]]);
+      d('#7a4ac8',[[3,4,2,4]]); d('#fff0a0',[[3,2],[5,2]]); d('#fff0a0',[[3,0,2,1]]); }
+  },
+  drawWarpTile(ctx,px,py,t,ch){
+    const u=t/8;
+    const d=(c,arr)=>{ ctx.fillStyle=c; arr.forEach(([x,y,w=1,h=1])=>ctx.fillRect(px+x*u,py+y*u,w*u,h*u)); };
+    if(ch==='>'){
+      // 階段：水色の縁取りで「切替タイル」と分かるように
+      d('rgba(120,210,255,.9)',[[0,0,8,1],[0,7,8,1],[0,0,1,8],[7,0,1,8]]);
+    } else if('VWEOPC'.includes(ch)){
+      // フィールド上の建物入口：水色の枠で囲って入れると分かるように
+      d('rgba(120,210,255,.85)',[[0,0,8,1],[0,7,8,1],[0,0,1,8],[7,0,1,8]]);
+    } else {
+      // 屋内の出入口マット：水色の床にする
+      ctx.fillStyle='#1f5a6e'; ctx.fillRect(px,py,t,t);
+      d('#3fa8c8',[[1,1,6,1],[1,6,6,1],[1,1,1,6],[6,1,1,6]]);
+      d('#7fe0f0',[[3,3,2,2]]);
+    }
+  },
+  dotChest(ctx,px,py,t){ const u=t/8;
+    const d=(c,arr)=>{ ctx.fillStyle=c; arr.forEach(([x,y,w=1,h=1])=>ctx.fillRect(px+x*u,py+y*u,w*u,h*u)); };
+    d('#8a5a2a',[[1,3,6,4]]); d('#d9b25b',[[1,2,6,1],[1,4,6,1]]); d('#5a3a18',[[1,3,6,1]]);
+    d('#fff0b0',[[3,4,2,1]]); d('#3a2410',[[3,5,2,2]]);
+  },
+  // 武器ごとの刃の色（noneは武器なし＝剣を描かない）
+  bladeColor(){
+    const w=this.p.equip.weapon;
+    return ({
+      copper:'#c98a3a', steel:'#cfd6e0', flameswd:'#ff7a3c',
+      excalibur:'#ffe27a', twig:'#9a6a33', balmung:'#eaf2ff',
+    })[w] || null;   // none や未定義は null＝剣なし
+  },
+  dotHero(ctx,px,py,t,dir,frame){
+    const u=t/8;
+    const d=(c,arr)=>{ ctx.fillStyle=c; arr.forEach(([x,y,w=1,h=1])=>ctx.fillRect(px+x*u,py+y*u,w*u,h*u)); };
+    const hair='#7a4a1a', skin='#e8b890', body='#3a6ad0', boot='#caa030';
+    const blade=this.bladeColor(), hasW=!!blade, hilt='#caa030';
+    // 影
+    ctx.fillStyle='rgba(0,0,0,.25)'; ctx.fillRect(px+2*u,py+7.3*u,4*u,0.6*u);
+    if(dir==='up'){ d(hair,[[2,0,4,2],[2,2,4,1]]); d(body,[[2,3,4,3]]); d('#2a4aa0',[[3,3,2,2]]);
+      // 上向き：右肩に剣を立てて背負う
+      if(hasW){ d(hilt,[[6,4,1,1]]); d(blade,[[6,0,1,4]]); } }
+    else if(dir==='down'){ d(hair,[[2,0,4,1]]); d(skin,[[2,1,4,2]]); d('#1a1008',[[3,2],[4,2]]);
+      d(body,[[2,3,4,3]]); d('#8090c0',[[3,3,2,1]]);
+      // 下向き：右手に剣を下げて持つ
+      if(hasW){ d(hilt,[[6,3,1,1]]); d(blade,[[6,4,1,3]]); } }
+    else { const lf=dir==='left';
+      d(hair,[[2,0,4,1]]); d(skin,[[2,1,4,2]]);
+      d('#1a1008',[[lf?2:5,2]]); d(body,[[2,3,4,3]]);
+      // 横向き：進行方向に剣を構える（武器装備時のみ）
+      if(hasW){ const bx=lf?0:7; d(hilt,[[lf?1:6,3,1,1]]); d(blade,[[bx,1,1,4]]); } }
+    // 足（歩行アニメ）
+    if(frame===0){ d(boot,[[2,6,2,1],[4,6,2,1]]); }
+    else { d(boot,[[2,6,2,1],[4,5,2,1]]); }
+  },
+
+  updateStrip(){ const p=this.p;
+    document.getElementById('sGold').textContent=p.gold;
+    const wrap=document.getElementById('partyStrip'); if(!wrap) return;
+    const units=[{name:'ゆうしゃ',lv:p.lv,hp:p.hp,maxHp:p.maxHp,mp:p.mp,maxMp:p.maxMp}];
+    p.party.forEach(key=>{ const st=p.allyState[key];
+      units.push({name:ALLIES[key].name,lv:st.lv,hp:st.hp,maxHp:st.maxHp,mp:st.mp,maxMp:st.maxMp}); });
+    wrap.innerHTML=units.map(u=>{
+      const hpPct=Math.max(0,u.hp)/u.maxHp*100, mpPct=u.maxMp?u.mp/u.maxMp*100:0;
+      const mpLine=u.maxMp>0?`<div><span class="ps-mp">MP</span> ${u.mp}/${u.maxMp}</div><div class="hbar mp"><i style="width:${mpPct}%"></i></div>`:'';
+      return `<div class="ps-unit${u.hp<=0?' downed':''}"><div class="ps-name">${u.name} <span class="ps-lv">Lv${u.lv}</span></div><div><span class="ps-hp">HP</span> ${Math.max(0,u.hp)}/${u.maxHp}</div><div class="hbar hp"><i style="width:${hpPct}%"></i></div>${mpLine}</div>`;
+    }).join('');
+  },
+  pick(a){ return a[Math.floor(Math.random()*a.length)]; },
+  randi(a,b){ return a+Math.floor(Math.random()*(b-a+1)); },
+  giveItem(k,n){ this.p.items[k]=(this.p.items[k]||0)+n; },
+  toast(msg){ let t=document.getElementById('_toast');
+    if(!t){ t=document.createElement('div'); t.id='_toast';
+      t.style.cssText='position:absolute;left:50%;top:14px;transform:translateX(-50%);background:#000;border:2px solid #fff;border-radius:6px;padding:6px 14px;font-size:13px;z-index:40;transition:.3s;opacity:0;';
+      document.getElementById('app').appendChild(t); }
+    t.textContent=msg; t.style.opacity='1';
+    clearTimeout(this._tt); this._tt=setTimeout(()=>t.style.opacity='0',1600);
+  },
+};
+
+game.init();
+</script>
