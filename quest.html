@@ -368,7 +368,7 @@ const MAPS = {
     "~T.......MM......TT~",
     "~....MM............~",
     "~T......TT........T~",
-    "~....~~~~~~~~~~....~",
+    "~....~~~~X~~~~~....~",
     "~..T.BBBBBBBBBB..W.~",
     "~....~~~~~~~~~~....~",
     "~T................T~",
@@ -525,6 +525,21 @@ const MAPS = {
     "#......,....#",
     "#############",
   ]},
+  abyss:{ indoor:true, rows:[
+    "#############",
+    "#####a#######",
+    "#####.#####.#",
+    "#.........#.#",
+    "#.#######.#.#",
+    "#.#.....#.#.#",
+    "#.#.###.#.#.#",
+    "#...#.#...#.#",
+    "###.#.#####.#",
+    "#...#......,#",
+    "#.#########.#",
+    "#...........#",
+    "#############",
+  ]},
 };
 
 const MAP_NAMES = {
@@ -533,6 +548,7 @@ const MAP_NAMES = {
   jobcastle:'てんしょくの しろ',
   elf:'エルフのくに', elftown:'エルフの まち', elfvillage:'エルフの さと',
   elfjob:'こだいの しんでん', elfcave:'せかいじゅの ねもと',
+  abyss:'しんえんの どうくつ',
 };
 
 const WARPS = [
@@ -627,6 +643,9 @@ const NPCS = {
     { x:5,y:1, emoji:'🪼', act:'elfboss' },
     { x:11,y:5, emoji:'🗝️', act:'elfkey', hideIfFlag:'elfHasKey' },
   ],
+  abyss:[
+    { x:5,y:1, emoji:'🐉', act:'abyssboss', hideIfFlagOn:'abyssCleared' },
+  ],
 };
 
 /* ---- 宝箱: map別。開けたら flags に記録 ---- */
@@ -658,6 +677,9 @@ const ENEMIES = {
   // エルフ国ボス: 世界樹を枯らす元凶
   blight:  { name:'えだ こうろの ヌァザ', art:'🪼', hp:1100, atk:72, def:36, spd:20, xp:0, gold:0, boss:true, spell:'darkflame',
              form2:{ name:'せかいじゅを むしばむ おおね', art:'🪸', spell:'darkflame' } },
+  abyss:   { name:'ねむれる ふくりゅう アビス', art:'🐉', hp:2600, atk:105, def:52, spd:26, xp:0, gold:0, boss:true, spell:'darkflame',
+             inflict:{status:'poison', rate:0.25},
+             form2:{ name:'しんの すがた・りゅうおう アビス', art:'🐲', spell:'darkflame', inflict:{status:'sleep', rate:0.25} } },
 };
 // 敵グループ: フィールド/ダンジョンで出る編成（重みつき）
 const ENC_GROUPS = {
@@ -842,7 +864,8 @@ function freshPlayer(){
             excaliburStage:0, cursed:false, jobChanged:false, jobChanged2:false,
             elfQuest:false, elfDoorOpen:false, elfHasKey:false, elfCleared:false, elfBasket:false,
             elfReturnDoor:false, backFromElf:false, finalEnd:false,
-            departed:false, princessJoined:false, metKud:false, gotShip:false },
+            departed:false, princessJoined:false, metKud:false, gotShip:false,
+            abyssCleared:false },
     quests:{},                        // サブクエスト進捗 {questId:{state,count}}
     seen:[], chests:[],
     loveGauge:0,                      // あいゲージ(0-100)。満タンで戦闘中あいのうた自動発動
@@ -851,7 +874,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='1.6';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='1.7';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1415,8 +1438,9 @@ const game = {
     const nx=p.x+d[0], ny=p.y+d[1], m=this.curMap();
     if(ny<0||ny>=m.rows.length||nx<0||nx>=m.rows[0].length) return;
     const t=m.rows[ny][nx];
+    if(t==='X' && !this.abyssRevealed()){ this.draw(); return; }   // 条件未達なら ただの湖（通れない）
     if(t==='D' && !this.doorIsOpen()){ this.draw(); return; }
-    if(t!=='D' && SOLID.has(t)){ this.draw(); return; }
+    if(t!=='D' && t!=='X' && SOLID.has(t)){ this.draw(); return; }
     p.x=nx; p.y=ny; this.frame^=1; this.draw();
     // 歩くたび あいゲージが少しずつ たまる（ランダム）
     this.addLove(this.randi(0,2));
@@ -1438,6 +1462,17 @@ const game = {
     if(p.map==='world' && t==='S'){
       this.boardShip(); return;
     }
+    // 湖に現れた最強裏ボスの洞窟
+    if(p.map==='world' && t==='X'){
+      this.message(['みずうみの そこから、くろい どうくつが せりあがっている。','なかから すさまじい あっぱくかんが…','はいりますか？'],()=>{
+        this.cmdCtx='field';
+        this.cmdItems=[
+          {label:'はいる',act:()=>{ this.closeCmd(); this.enterAbyss(); }},
+          {label:'やめる',act:()=>{ this.closeCmd(); }},
+        ]; this.cmdSel=0; this.renderCmd('cmdBox');
+      });
+      return;
+    }
     const w=WARPS.find(w=>w.map===p.map&&w.x===nx&&w.y===ny);
     if(w){
       if(t==='>') this.promptWarp(w);   // 階段だけ「すすむ/まだ」を聞く
@@ -1449,6 +1484,19 @@ const game = {
       this.returnToWorldFromElf(); return;
     }
     // エルフ国の外フィールドの出口（,）: クリア後のみ もとの せかいへ戻れる
+    if(p.map==='abyss' && t===','){
+      this.message(['しんえんを あとに する。','みずうみの うえへ もどりますか？'],()=>{
+        this.cmdCtx='field';
+        this.cmdItems=[
+          {label:'もどる',act:()=>{ this.closeCmd();
+            p.map='world'; if(p.abyssReturn){ p.x=p.abyssReturn.x; p.y=p.abyssReturn.y; } else { p.x=9; p.y=10; }
+            p.abyssReturn=null; p.dir='down'; audio.se('warp');
+            this.enterField(); audio.bgm(this.bgmFor()); this.draw(); this.setPlace(); }},
+          {label:'まだ',act:()=>{ this.closeCmd(); }},
+        ]; this.cmdSel=0; this.renderCmd('cmdBox');
+      });
+      return;
+    }
     if(p.map==='elf' && t===','){
       if(p.flags.elfCleared){
         this.message(['ひかりの もんが ひらいている。','もとの せかいへ もどりますか？'],()=>{
@@ -1571,6 +1619,10 @@ const game = {
   },
   // 現在マップの鍵扉Dが開いているか（エルフ国は別フラグ）
   doorIsOpen(){ return this.p.map==='elfcave' ? this.p.flags.elfDoorOpen : this.p.flags.doorOpen; },
+  // 最強裏ボスの洞窟が湖に現れる条件：ブルトガング・2次職・姫加入・エルフのかご が揃う
+  abyssRevealed(){ const p=this.p;
+    return p.ownedGear.includes('balmung') && p.flags.jobChanged2 && p.flags.princessJoined && p.flags.elfBasket;
+  },
   openChest(c){
     if(this.p.chests.includes(c.id)){ this.message(['たからばこは からっぽだ。']); return; }
     if(c.locked && this.p.flags.excaliburStage<3){ this.message(['ふしぎな ちからで ふうじられている…','どくろが なにか しっていそうだ。']); return; }
@@ -1609,6 +1661,7 @@ const game = {
       case 'worldtree': this.worldtreeTalk(); break;      case 'elfmaiden': this.elfMaidenTalk(); break;
       case 'elfkey': this.elfKeyTalk(); break;
       case 'elfboss': this.elfBossTalk(); break;
+      case 'abyssboss': this.abyssBossTalk(); break;
       case 'princess': this.princessTalk(); break;
     }
   },
@@ -2089,6 +2142,59 @@ const game = {
         {label:'たたかう',act:()=>{ this.closeCmd(); this.startBattle('blight'); }},
         {label:'まだ やめておく',act:()=>{ this.closeCmd(); this.message(['いまは しりぞこう…']); }},
       ]; this.cmdSel=0; this.renderCmd('cmdBox');
+    });
+  },
+  // 最強裏ボスの洞窟へ入る
+  enterAbyss(){ const p=this.p;
+    p.abyssReturn={x:p.x,y:p.y};      // 戻り先（湖の手前）
+    p.map='abyss'; p.x=1; p.y=11; p.dir='up';
+    audio.se('warp'); audio.bgm('cave');
+    this.draw(); this.setPlace();
+    this.message([
+      'みずうみの そこ── ひかり とどかぬ しんえん。',
+      'くうきが おもく、いきを するのも くるしい。',
+      'おくに、ぼうだいな ちからの けはいが ある…',
+    ]);
+  },
+  abyssBossTalk(){ const p=this.p;
+    if(p.flags.abyssCleared){ this.message(['しんえんは しずまりかえって いる。']); return; }
+    this.message([
+      'しんえんの おくに、ねむれる ふくりゅう 「アビス」が めを さました！',
+      'アビス「…よくぞ ここまで きた、ちいさき ゆうしゃ よ。」',
+      'アビス「ブルトガングの ぬし、こだいの ちからの もちぬし、',
+      'そして あいを しる もの だけが、われに たどりつける。」',
+      'アビス「みせて みよ。なんじの すべてを！」',
+      'たたかいますか？'
+    ],()=>{
+      this.cmdCtx='field';
+      this.cmdItems=[
+        {label:'たたかう',act:()=>{ this.closeCmd(); this.startBattle('abyss'); }},
+        {label:'まだ やめておく',act:()=>{ this.closeCmd(); this.message(['いまは しりぞこう…']); }},
+      ]; this.cmdSel=0; this.renderCmd('cmdBox');
+    });
+  },
+  // 裏ボス撃破後
+  abyssEnding(){ audio.stopBgm(); audio.se('win');
+    document.getElementById('battle').classList.remove('show'); this.mode='message';
+    document.getElementById('msgBox').classList.add('show');
+    const p=this.p;
+    // 撃破の証として ちからを 授ける（最大HP+50・攻撃+10・防御+10）
+    p.maxHp+=50; p.hp=p.maxHp; p.baseAtk+=10; p.baseDef+=10;
+    this.message([
+      'りゅうおう アビスは、しずかに ちからを うしなって いった──',
+      'アビス「みごと だ…なんじこそ まことの えいゆう。」',
+      'アビス「わが ちからの 一部を、なんじに さずけよう。」',
+      'さいだいHPが 50 あがり、こうげき・ぼうぎょが 10 ずつ あがった！',
+      'アビス「あらたな たいりくでも、なんじの たびに さちあらん…」',
+      '── さいきょうの うらボス アビスを たおした！ ──',
+      'ゆうしゃは しんの さいきょうの しょうごうを てに いれた！',
+    ],()=>{
+      // 洞窟入口（湖の手前）に戻す
+      p.map='world';
+      if(p.abyssReturn){ p.x=p.abyssReturn.x; p.y=p.abyssReturn.y; } else { p.x=9; p.y=10; }
+      p.abyssReturn=null; p.dir='down';
+      this.save(); this.enterField(); audio.bgm(this.bgmFor());
+      this.updateStrip();
     });
   },
   enterTowerPrompt(){
@@ -3223,6 +3329,8 @@ const game = {
   victory(){
     if(this.isBossBattle){
       this.syncAlliesBack();
+      const isAbyss = this.enemies.some(e=>e.key==='abyss');
+      if(isAbyss){ this.p.flags.abyssCleared=true; this.abyssEnding(); return; }
       const isElf = this.enemies.some(e=>e.key==='blight');
       if(isElf){ this.p.flags.elfCleared=true; this.elfEnding(); return; }
       this.p.flags.won=true; this.ending(); return;
@@ -3674,6 +3782,17 @@ const game = {
       dot('#4a3018',[[1,6,6,1]]);
       dot('#cfd6e0',[[4,1,1,4]]);                                 // マスト
       dot('#eef2f8',[[2,2,2,3],[5,2,2,3]]);                       // 帆
+    }
+    else if(ch==='X'){ // 湖に現れる裏ボスの洞窟（条件未達なら ただの水）
+      if(this.abyssRevealed()){
+        ctx.fillStyle='#2f6fc4'; ctx.fillRect(px,py,t,t);        // 水
+        dot('#10131c',[[2,1,4,6],[1,2,6,4]]);                    // 黒い洞窟の口
+        dot('#05070c',[[3,3,2,3]]);                               // 奥の闇
+        dot('#3a4a6a',[[2,1,4,1]]);                               // 岩のふち
+      } else {
+        ctx.fillStyle='#2f6fc4'; ctx.fillRect(px,py,t,t);
+        dot('#5a92e0',[[1,1],[6,2],[2,6],[7,5]]);                 // ただの波
+      }
     }
   },
   dotBuilding(ctx,px,py,t,kind){
