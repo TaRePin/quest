@@ -132,6 +132,9 @@
   .msg-ind .more{font-size:16px;line-height:1;animation:moreBounce 1s ease-in-out infinite;}
   .msg-ind .tap-mark{font-size:15px;line-height:1;color:#fff;}
   .msg-ind .tap-label{font-size:11px;letter-spacing:.08em;color:#9fc0ff;}
+  .msg-ind .tap-label.float{font-weight:bold;letter-spacing:.14em;color:#bcd4ff;
+    text-shadow:0 0 6px rgba(120,160,255,.6);animation:tapFloat 1.1s ease-in-out infinite;}
+  @keyframes tapFloat{0%,100%{transform:translateY(0);opacity:.65;}50%{transform:translateY(-4px);opacity:1;}}
   @keyframes moreBounce{0%,100%{transform:translateY(0);opacity:.5;}50%{transform:translateY(3px);opacity:1;}}
   #cmdBox{position:absolute;right:8px;bottom:100px;z-index:21;display:none;min-width:128px;}
   #cmdBox.show{display:block;}
@@ -888,7 +891,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='2.7';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='2.8';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -2770,9 +2773,9 @@ const game = {
     const inB=this.mode==='battle';
     const el=document.getElementById(inB?'bMsgInd':'msgInd'); if(!el) return;
     if(more){
-      el.innerHTML='<span class="more">▽</span><span class="tap-label">タップ</span>';
+      el.innerHTML='<span class="more">▽</span><span class="tap-label float">TAP</span>';
     } else {
-      el.innerHTML='<span class="tap-mark">〇</span><span class="tap-label">タップ</span>';
+      el.innerHTML='<span class="tap-mark">〇</span><span class="tap-label float">TAP</span>';
       const mark=el.querySelector('.tap-mark'); let on=false;
       this._indTimer=setInterval(()=>{ on=!on; if(mark) mark.textContent=on?'◎':'〇'; }, 450);
     }
@@ -4095,6 +4098,7 @@ const game = {
     return ({
       copper:'#c98a3a', steel:'#cfd6e0', flameswd:'#ff7a3c',
       excalibur:'#ffe27a', twig:'#9a6a33', balmung:'#eaf2ff',
+      branch:'#7a5226', almace:'#fff4b0',
     })[w] || null;   // none や未定義は null＝剣なし
   },
   dotHero(ctx,px,py,t,dir,frame){
