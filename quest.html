@@ -124,8 +124,15 @@
   @keyframes bdead{to{opacity:0;transform:scale(.4) translateY(20px);filter:blur(4px);}}
   #msgBox{position:absolute;left:8px;right:8px;bottom:8px;z-index:20;display:none;min-height:84px;}
   #msgBox.show{display:block;}
-  #msgText{white-space:pre-wrap;}
+  #msgText{white-space:pre-wrap;padding-bottom:18px;}
+  #bMsgText{padding-bottom:18px;}
   .msg-cursor{color:#fff;animation:bl 1s steps(1) infinite;}
+  .msg-ind{position:absolute;right:14px;bottom:10px;height:20px;display:flex;align-items:center;gap:6px;
+    font-size:13px;color:#cfe0ff;pointer-events:none;}
+  .msg-ind .more{font-size:16px;line-height:1;animation:moreBounce 1s ease-in-out infinite;}
+  .msg-ind .tap-mark{font-size:15px;line-height:1;color:#fff;}
+  .msg-ind .tap-label{font-size:11px;letter-spacing:.08em;color:#9fc0ff;}
+  @keyframes moreBounce{0%,100%{transform:translateY(0);opacity:.5;}50%{transform:translateY(3px);opacity:1;}}
   #cmdBox{position:absolute;right:8px;bottom:100px;z-index:21;display:none;min-width:128px;}
   #cmdBox.show{display:block;}
   .cmd-item{padding:3px 8px 3px 20px;position:relative;cursor:pointer;font-size:15px;}
@@ -278,7 +285,7 @@
 
   <div id="stage">
     <canvas id="view"></canvas>
-    <div id="msgBox" class="win"><div id="msgText"></div></div>
+    <div id="msgBox" class="win"><div id="msgText"></div><div id="msgInd" class="msg-ind"></div></div>
     <div id="cmdBox" class="win"></div>
   </div>
 
@@ -304,7 +311,7 @@
     <div id="bParty"></div>
     <div id="bAuto">AUTO ▢</div>
     <div id="bLove"><span class="lv-label" id="bLoveLabel">💗あい</span><div class="lv-bar"><i id="bLoveFill"></i></div></div>
-    <div id="bMsg" class="win"><div id="bMsgText"></div></div>
+    <div id="bMsg" class="win"><div id="bMsgText"></div><div id="bMsgInd" class="msg-ind"></div></div>
     <div id="bCmd" class="win"></div>
     <div id="bSub" class="win"></div>
   </div>
@@ -881,7 +888,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='2.5';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='2.6';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -2751,22 +2758,47 @@ const game = {
     else document.getElementById('msgBox').classList.add('show');
     this.showMsgPage();
   },
+  // 続行インジケーターを消す
+  clearMsgInd(){
+    if(this._indTimer){ clearInterval(this._indTimer); this._indTimer=null; }
+    const a=document.getElementById('msgInd'), b=document.getElementById('bMsgInd');
+    if(a) a.innerHTML=''; if(b) b.innerHTML='';
+  },
+  // 続行インジケーターを表示。more=true ならまだ続く（▽点滅）、false なら最後（〇◎＋タップ）
+  showMsgInd(more){
+    this.clearMsgInd();
+    const inB=this.mode==='battle';
+    const el=document.getElementById(inB?'bMsgInd':'msgInd'); if(!el) return;
+    if(more){
+      el.innerHTML='<span class="more">▽</span>';
+    } else {
+      el.innerHTML='<span class="tap-mark">〇</span><span class="tap-label">タップ</span>';
+      const mark=el.querySelector('.tap-mark'); let on=false;
+      this._indTimer=setInterval(()=>{ on=!on; if(mark) mark.textContent=on?'◎':'〇'; }, 450);
+    }
+  },
   showMsgPage(){ const inB=this.mode==='battle';
     const txt=document.getElementById(inB?'bMsgText':'msgText');
+    this.clearMsgInd();
     const full=this.msgQueue[0]; this._typeFull=full; this._typing=true; let i=0;
-    const tick=()=>{ if(!this._typing){ txt.textContent=full;
-        if(this.auto&&this.mode==='battle') this._autoAdv(); return; }
+    const done=()=>{ txt.textContent=full; this._typing=false;
+      // タイプ完了 → まだ次ページがあれば▽点滅、最後なら〇◎＋タップ
+      this.showMsgInd(this.msgQueue.length>1);
+      if(this.auto&&this.mode==='battle') this._autoAdv();
+    };
+    const tick=()=>{ if(!this._typing){ done(); return; }
       txt.textContent=full.slice(0,i);
       txt.insertAdjacentHTML('beforeend','<span class="msg-cursor">●</span>');
       if(i<full.length){ i++; setTimeout(tick,this.msgDelay); }
-      else { txt.textContent=full; this._typing=false;
-        if(this.auto&&this.mode==='battle') this._autoAdv(); } };
+      else { done(); } };
     tick();
   },
   _autoAdv(){ clearTimeout(this._autoTimer);
     this._autoTimer=setTimeout(()=>{ if(this.auto&&!this._typing) this.advanceMsg(); }, 750); },
   advanceMsg(){ if(this._typing){ this._typing=false;
-      document.getElementById(this.mode==='battle'?'bMsgText':'msgText').textContent=this._typeFull; return; }
+      document.getElementById(this.mode==='battle'?'bMsgText':'msgText').textContent=this._typeFull;
+      this.showMsgInd(this.msgQueue.length>1); return; }
+    this.clearMsgInd();
     this.msgQueue.shift();
     if(this.msgQueue.length){ this.showMsgPage(); return; }
     document.getElementById('msgBox').classList.remove('show');
