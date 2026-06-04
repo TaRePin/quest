@@ -881,7 +881,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='2.3';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='2.4';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1182,36 +1182,44 @@ const game = {
   devStart(){
     const p=freshPlayer();
     this.p=p;
-    // 勇者を Lv10 まで成長（checkLevel と同じ増分）
-    while(p.lv<10){ p.lv++;
+    // 勇者を Lv15 まで成長
+    while(p.lv<15){ p.lv++;
       p.maxHp+=8; p.maxMp+=4; p.baseAtk+=1; p.baseDef+=1;
       const l=LEARN[p.lv]; if(l&&!p.spells.includes(l)) p.spells.push(l);
     }
     p.hp=p.maxHp; p.mp=p.maxMp;
-    // パラディンへ転職（JOBS定義のボーナスを適用）
-    const j=JOBS.paladin;
-    p.job='paladin'; p.flags.jobChanged=true;
-    p.maxHp+=j.bonusHp; p.baseDef+=j.bonusDef; p.baseAtk+=j.bonusAtk;
-    if(j.learn && !p.spells.includes(j.learn)) p.spells.push(j.learn);
-    p.hp=p.maxHp; p.mp=p.maxMp;
-    // ブルトガングを装備（呪い・所持に追加）
-    if(!p.ownedGear.includes('balmung')) p.ownedGear.push('balmung');
-    p.equip.weapon='balmung'; p.flags.cursed=true;
-    // 仲間（せんし・けんじゃ）を Lv10 で加入
+    // パラディン→ジェネラル（1次・2次職を適用）
+    this.applyJob('paladin',false);
+    this.applyJob('general',true);
+    // アルマス装備（クエスト2完了扱い）
+    if(!p.ownedGear.includes('almace')) p.ownedGear.push('almace');
+    p.equip.weapon='almace'; p.flags.cursed=true;
+    p.flags.excaliburStage=3; p.flags.almaceDone=true;
+    p.chests.push('skull_chest');
+    // しんぴのよろい装備
+    if(!p.ownedGear.includes('mysticarmor')) p.ownedGear.push('mysticarmor');
+    p.equip.armor='mysticarmor';
+    // 仲間（せんし・けんじゃ）を Lv15 で加入（joinAllyが勇者Lvに自動追従）
     p.flags.joinWarrior=true; p.flags.joinSage=true;
     this.joinAlly('warrior'); this.joinAlly('sage');
-    // 物語フラグも進めておく（鍵入手済み・王に会った扱い）
-    p.flags.metKing=true; p.flags.hasKey=true;
-    // フィールドへ
-    p.map='world'; p.x=10; p.y=4; p.dir='down';
+    // 物語フラグ：ガルゾス撃破・エルフ国クリア済み・エルフのかご入手・姫加入
+    p.flags.metKing=true; p.flags.hasKey=true; p.flags.doorOpen=true;
+    p.flags.won=true; p.flags.elfQuest=true;
+    p.flags.elfCleared=true; p.flags.elfDoorOpen=true; p.flags.elfHasKey=true;
+    p.flags.elfBasket=true; p.flags.backFromElf=true;
+    p.flags.jobChanged=true; p.flags.jobChanged2=true;
+    // エルフ国クリア後・もとの国の橋の中央に立つ
+    p.map='world'; p.x=10; p.y=9; p.dir='up';
+    p.hp=p.maxHp; p.mp=p.maxMp;
     audio.init(); audio.resume();
     document.getElementById('title').style.display='none';
     this.enterField(); audio.bgm(this.bgmFor());
     this.message([
-      '【デバッグ スタート】',
-      'Lv10 パラディン・ブルトガングそうび。',
-      'せんし・けんじゃも Lv10で なかまに いる。',
-      'とくぎ「かちこち」「ちょうはつ」も つかえる。'
+      '【デバッグ スタート：さいきょう こうせい】',
+      'Lv15 ジェネラル・アルマス＋しんぴのよろい そうび。',
+      'エルフのかご・エルフ国クリアずみ・はしの まんなか から。',
+      'せんし・けんじゃも Lv15で なかまに いる。',
+      '※うらボスを だすには さらに「ひめの かにゅう」が ひつよう。',
     ]);
   },
   // 左の隠しスタート: ガルゾス撃破後・エルフ国に着いた状態から。Lv15・ブルトガング・仲間Lv15
@@ -1648,7 +1656,7 @@ const game = {
       return;
     }
     const chest=CHESTS.find(c=>c.map===p.map&&c.x===fx&&c.y===fy);
-    if(chest){ this.openChest(chest); return; }
+    if(chest && !this.chestTaken(chest.id)){ this.openChest(chest); return; }
     // 塔の宝箱
     if(p.map==='tower' && m.rows[fy] && m.rows[fy][fx]==='C'){ this.openTowerChest(fx,fy); return; }
     // 塔の入口
@@ -3308,7 +3316,8 @@ const game = {
       const bar=node&&node.querySelector('.b-uhp i'); if(bar) bar.style.width=Math.max(0,target.hp/target.maxHp*100)+'%';
     }
     // 攻撃ごとの味方回復：最もHP割合の低い生存味方を回復（HPを持つ仲間のみ）
-    const heal=this.rollBalmungHeal();
+    // アルマスは100固定回復、ブルトガングはロール回復
+    const heal=(this.p.equip.weapon==='almace') ? 100 : this.rollBalmungHeal();
     const tgt=this.healableAllies().sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
     let healLine='';
     if(tgt){ const before=tgt.hp; tgt.hp=Math.min(tgt.maxHp,tgt.hp+heal); const h=tgt.hp-before;
