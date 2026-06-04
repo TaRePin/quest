@@ -646,7 +646,7 @@ const NPCS = {
     { x:11,y:5, emoji:'🗝️', act:'elfkey', hideIfFlag:'elfHasKey' },
   ],
   abyss:[
-    { x:5,y:1, emoji:'🐉', act:'abyssboss', hideIfFlagOn:'abyssCleared' },
+    { x:5,y:1, emoji:'🐉', act:'abyssboss' },
   ],
 };
 
@@ -793,6 +793,9 @@ const GEAR = {
   mithril:   { name:'ミスリルの よろい', slot:'armor',  def:58, price:6800, desc:'でんせつの きんぞくの よろい' },
   dangerswim:{ name:'あぶない みずぎ',   slot:'armor',  def:10, price:210000,charm:0.15,desc:'ぼうぎょ+10。ときどき てきを みりょうし こうどうふのうに する' },
   watergarb: { name:'みずの はごろも',   slot:'armor',  def:100,price:14000,desc:'みずの せいれいの はごろも。ぼうぎょ+100' },
+  mysticarmor:{ name:'しんぴの よろい',  slot:'armor',  def:150, special:true, decoy:true, desc:'ぼうぎょ+150。HPが はんぶんを きると ぶんしんを よびだす' },
+  branch:    { name:'ひのきの えだ',    slot:'weapon', atk:10, cursed:true, special:true, desc:'こうげき10。なにかの しれんに つかう えだ' },
+  almace:    { name:'アルマス',         slot:'weapon', atk:200, cursed:true, special:true, multi:true, lightDmg:50, desc:'こうげき+200。ときどき 3〜6れんげき＋ひかりダメージ50' },
 };
 
 const SHOPS = {
@@ -867,7 +870,8 @@ function freshPlayer(){
             elfQuest:false, elfDoorOpen:false, elfHasKey:false, elfCleared:false, elfBasket:false,
             elfReturnDoor:false, backFromElf:false, finalEnd:false,
             departed:false, princessJoined:false, metKud:false, gotShip:false,
-            abyssCleared:false },
+            abyssCleared:false, abyssClears:0,
+            branchQuest:false, branchBattles:0, almaceDone:false },
     quests:{},                        // サブクエスト進捗 {questId:{state,count}}
     seen:[], chests:[],
     loveGauge:0,                      // あいゲージ(0-300)。しきい値に達すると戦闘中あいのうた自動発動
@@ -877,7 +881,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='1.8';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='2.0';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1217,6 +1221,9 @@ const game = {
     // ブルトガング装備
     if(!p.ownedGear.includes('balmung')) p.ownedGear.push('balmung');
     p.equip.weapon='balmung'; p.flags.cursed=true;
+    // しんぴのよろい装備（デコイ検証用）
+    if(!p.ownedGear.includes('mysticarmor')) p.ownedGear.push('mysticarmor');
+    p.equip.armor='mysticarmor';
     // 仲間を Lv15 で加入
     p.flags.joinWarrior=true; p.flags.joinSage=true;
     this.joinAlly('warrior'); this.joinAlly('sage');
@@ -1453,7 +1460,7 @@ const game = {
     }
     // 通常マップの宝箱→踏んだら開ける（封印箱は除く＝開かないが素通りはできる）
     const stepChest=CHESTS.find(c=>c.map===p.map&&c.x===nx&&c.y===ny);
-    if(stepChest && !this.p.chests.includes(stepChest.id)
+    if(stepChest && !this.chestTaken(stepChest.id)
        && !(stepChest.locked && this.p.flags.excaliburStage<3)){
       this.openChest(stepChest); return;
     }
@@ -1518,14 +1525,15 @@ const game = {
     if(p.map==='world' && t==='B'){ this.checkBridgeEvent();
       if(this._bridgeTimer) return; // 計測中はエンカウントしない
     }
+    const encMul = (p.equip.weapon==='branch') ? 1.3 : 1;   // クエスト2中はエンカウント1.3倍
     if(p.map==='world'||p.map==='cave1'||p.map==='cave2'){
-      const rate = p.map==='world'?0.10:0.15;
+      const rate = (p.map==='world'?0.10:0.15)*encMul;
       if(Math.random()<rate) this.startBattle(this.pick(ENC_GROUPS[p.map]));
     } else if(p.map==='elf'||p.map==='elfcave'){
-      const rate = p.map==='elf'?0.12:0.16;
+      const rate = (p.map==='elf'?0.12:0.16)*encMul;
       if(Math.random()<rate) this.startBattle(this.pick(ENC_GROUPS[p.map]));
     } else if(p.map==='tower'){
-      if(Math.random()<0.18) this.startBattle(this.towerEncounter());
+      if(Math.random()<0.18*encMul) this.startBattle(this.towerEncounter());
     }
   },
   // ボス撃破後の帰還：もとの国の橋の中央へ。王へ報告する独り言
@@ -1626,8 +1634,14 @@ const game = {
   abyssRevealed(){ const p=this.p;
     return p.ownedGear.includes('balmung') && p.flags.jobChanged2 && p.flags.princessJoined && p.flags.elfBasket;
   },
+  // 宝箱が取得済みか。ブルトガング保有なら ドクロの宝箱(ひのきのぼうきれ)は取得済み扱い
+  chestTaken(id){
+    if(this.p.chests.includes(id)) return true;
+    if(id==='skull_chest' && this.p.ownedGear.includes('balmung')) return true;
+    return false;
+  },
   openChest(c){
-    if(this.p.chests.includes(c.id)){ this.message(['たからばこは からっぽだ。']); return; }
+    if(this.chestTaken(c.id)){ this.message(['たからばこは からっぽだ。']); return; }
     if(c.locked && this.p.flags.excaliburStage<3){ this.message(['ふしぎな ちからで ふうじられている…','どくろが なにか しっていそうだ。']); return; }
     this.p.chests.push(c.id); audio.se('chest'); this.draw();
     const g=c.give; let msg;
@@ -2160,39 +2174,65 @@ const game = {
     ]);
   },
   abyssBossTalk(){ const p=this.p;
-    if(p.flags.abyssCleared){ this.message(['しんえんは しずまりかえって いる。']); return; }
-    this.message([
-      'しんえんの おくに、ねむれる ふくりゅう 「アビス」が めを さました！',
-      'アビス「…よくぞ ここまで きた、ちいさき ゆうしゃ よ。」',
-      'アビス「ブルトガングの ぬし、こだいの ちからの もちぬし、',
-      'そして あいを しる もの だけが、われに たどりつける。」',
-      'アビス「みせて みよ。なんじの すべてを！」',
-      'たたかいますか？'
-    ],()=>{
-      this.cmdCtx='field';
-      this.cmdItems=[
-        {label:'たたかう',act:()=>{ this.closeCmd(); this.startBattle('abyss'); }},
-        {label:'まだ やめておく',act:()=>{ this.closeCmd(); this.message(['いまは しりぞこう…']); }},
-      ]; this.cmdSel=0; this.renderCmd('cmdBox');
-    });
+    const clears=p.flags.abyssClears||0;
+    if(clears===0){
+      this.message([
+        'しんえんの おくに、ねむれる ふくりゅう 「アビス」が めを さました！',
+        'アビス「…よくぞ ここまで きた、ちいさき ゆうしゃ よ。」',
+        'アビス「ブルトガングの ぬし、こだいの ちからの もちぬし、',
+        'そして あいを しる もの だけが、われに たどりつける。」',
+        'アビス「みせて みよ。なんじの すべてを！」',
+        'たたかいますか？'
+      ],()=>this.abyssFightPrompt());
+    } else {
+      this.message([
+        `しんえんの おくに、さらに つよき アビス（＋${clears}）が またも たちはだかる！`,
+        'アビス「ほう…また きたか。こんどは もっと つよく なって いるぞ。」',
+        'アビス「なんど でも あいてに なろう。かかって こい！」',
+        'たたかいますか？'
+      ],()=>this.abyssFightPrompt());
+    }
+  },
+  abyssFightPrompt(){
+    this.cmdCtx='field';
+    this.cmdItems=[
+      {label:'たたかう',act:()=>{ this.closeCmd(); this.startBattle('abyss'); }},
+      {label:'まだ やめておく',act:()=>{ this.closeCmd(); this.message(['いまは しりぞこう…']); }},
+    ]; this.cmdSel=0; this.renderCmd('cmdBox');
   },
   // 裏ボス撃破後
   abyssEnding(){ audio.stopBgm(); audio.se('win');
     document.getElementById('battle').classList.remove('show'); this.mode='message';
     document.getElementById('msgBox').classList.add('show');
     const p=this.p;
-    // 撃破の証として ちからを 授ける（最大HP+50・攻撃+10・防御+10）
-    p.maxHp+=50; p.hp=p.maxHp; p.baseAtk+=10; p.baseDef+=10;
-    this.message([
-      'りゅうおう アビスは、しずかに ちからを うしなって いった──',
-      'アビス「みごと だ…なんじこそ まことの えいゆう。」',
-      'アビス「わが ちからの 一部を、なんじに さずけよう。」',
-      'さいだいHPが 50 あがり、こうげき・ぼうぎょが 10 ずつ あがった！',
-      'アビス「あらたな たいりくでも、なんじの たびに さちあらん…」',
-      '── さいきょうの うらボス アビスを たおした！ ──',
-      'ゆうしゃは しんの さいきょうの しょうごうを てに いれた！',
-    ],()=>{
-      // 洞窟入口（湖の手前）に戻す
+    const first = !p.flags.abyssCleared;
+    p.flags.abyssCleared=true;
+    p.flags.abyssClears=(p.flags.abyssClears||0)+1;
+    let lines;
+    if(first){
+      // 初回のみ：しんぴのよろい入手＋ステータス報酬
+      p.maxHp+=50; p.hp=p.maxHp; p.baseAtk+=10; p.baseDef+=10;
+      if(!p.ownedGear.includes('mysticarmor')) p.ownedGear.push('mysticarmor');
+      lines=[
+        'りゅうおう アビスは、しずかに ちからを うしなって いった──',
+        'アビス「みごと だ…なんじこそ まことの えいゆう。」',
+        'さいだいHPが 50 あがり、こうげき・ぼうぎょが 10 ずつ あがった！',
+        'たからばこから 「しんぴの よろい」を てに いれた！',
+        'しんぴの よろい：ぼうぎょ+150。HPが はんぶんを きると ぶんしんを よびだす。',
+        'アビス「だが…われは なんど でも よみがえる。さらに つよく なって な。」',
+        '── さいきょうの うらボス アビスを たおした！ ──',
+      ];
+    } else {
+      // 再戦：撃破ごとに少しだけステータス報酬
+      p.maxHp+=20; p.hp=p.maxHp; p.baseAtk+=5; p.baseDef+=5;
+      lines=[
+        `さらに つよき アビス（＋${p.flags.abyssClears-1}）を うちやぶった！`,
+        'アビス「…みごと。だが つぎは もっと つよく なって もどる。」',
+        'さいだいHP+20、こうげき・ぼうぎょ+5！',
+        `これまでの げきは かいすう：${p.flags.abyssClears}かい`,
+      ];
+    }
+    this.message(lines,()=>{
       p.map='world';
       if(p.abyssReturn){ p.x=p.abyssReturn.x; p.y=p.abyssReturn.y; } else { p.x=9; p.y=10; }
       p.abyssReturn=null; p.dir='down';
@@ -2328,7 +2368,53 @@ const game = {
         this.updateStrip();
       });
     } else if(st===3){
-      this.message(['どくろ「となりの はこを あけるが よい。」']);
+      const p2=this.p;
+      // クエスト2：ブルトガング強化（アルマス）
+      if(p2.flags.almaceDone){
+        this.message(['どくろ「アルマスの ぬし よ。もう おしえる ことは ない。」']); return;
+      }
+      if(p2.flags.branchQuest){
+        // クエスト2 進行中／完了チェック
+        if((p2.flags.branchBattles||0) >= 200){
+          // 完了 → アルマス授与
+          p2.flags.almaceDone=true; p2.flags.branchQuest=false;
+          if(!p2.ownedGear.includes('almace')) p2.ownedGear.push('almace');
+          p2.ownedGear=p2.ownedGear.filter(g=>g!=='branch');
+          p2.equip.weapon='almace'; p2.flags.cursed=true;
+          audio.se('win'); this.updateStrip();
+          this.message([
+            'どくろ「フォフォフォ…！ 200の しれんを のりこえたか！」',
+            'どくろ「ひのきの えだが、しんの すがたを とりもどす…」',
+            'ひのきの えだが まばゆく かがやいた！',
+            'でんせつを こえし まけん「アルマス」に しんかした！',
+            'こうげきりょくが げきぞうし、ときに 3〜6れんげき＋ひかりの ちからを やどす！',
+          ]);
+        } else {
+          const left=200-(p2.flags.branchBattles||0);
+          this.message([`どくろ「まだ ${left}かい たりぬ。ひのきの えだ で たたかいつづけよ。」`]);
+        }
+        return;
+      }
+      // クエスト2 開始（ブルトガング装備中に話しかける）
+      if(p2.equip.weapon==='balmung'){
+        this.message([
+          'どくろ「ほう…また あの しれんを うけたいのか？ ものずきだな。」',
+          'どくろ「わかって いると おもうが、その ブルトガングは かいしゅうだ。」',
+          'どくろ「こまかい ことは いわない。これを つかいな。」',
+          'むりやり 「ひのきの えだ」を にぎらされた…',
+          'どくろ「こうげきは 10まで さがった。だが しれんを こえれば…フォフォフォ。」',
+          'どくろ「200かい たたかえ。みちは きけんに みちる（エンカウント1.3ばい）。」',
+        ],()=>{
+          // ブルトガング回収、ひのきのえだ強制装備
+          p2.ownedGear=p2.ownedGear.filter(g=>g!=='balmung');
+          if(!p2.ownedGear.includes('branch')) p2.ownedGear.push('branch');
+          p2.equip.weapon='branch'; p2.flags.cursed=true;
+          p2.flags.branchQuest=true; p2.flags.branchBattles=0;
+          this.updateStrip();
+        });
+      } else {
+        this.message(['どくろ「となりの はこは もう あけたな。」','どくろ「ブルトガングを そうびして はなしかけて みよ。フォフォフォ…」']);
+      }
     } else {
       this.message(['どくろ「フォフォフォ…」']);
     }
@@ -2688,24 +2774,33 @@ const game = {
   // 戦闘終了時、味方ユニットの現在HP/MP/状態を永続データへ書き戻す
   syncAlliesBack(){
     this.allies.forEach(u=>{
+      if(u.isDecoy) return;                 // デコイは戦闘限り（書き戻さない）
       if(u.isHero){ this.p.hp=Math.max(0,u.hp); this.p.mp=u.mp; this.p.status=u.alive?u.status:''; }
-      else { const st=this.p.allyState[u.key]; st.hp=Math.max(0,u.hp); st.mp=u.mp; st.status=u.alive?u.status:''; }
+      else { const st=this.p.allyState[u.key]; if(!st) return; st.hp=Math.max(0,u.hp); st.mp=u.mp; st.status=u.alive?u.status:''; }
     });
   },
 
   startBattle(arg){
     // とくぎ効果を初期化（前の戦闘の持ち越し防止）
-    this.guardAllTurns=0; this.provokeTurns=0; this.provokeTarget=null; this.loveTurns=0; this.lovePeak=false;
+    this.guardAllTurns=0; this.provokeTurns=0; this.provokeTarget=null; this.loveTurns=0; this.lovePeak=false; this._decoyUsed=false;
     // arg: 敵キー1つ(ボス) または 敵キー配列(グループ)
     let keys = Array.isArray(arg)?arg:[arg];
     let f=this.p.map==='cave2'?1.15:(this.p.map==='cave1'?1.05:1);
     if(this.p.map==='tower') f=1+(this.p.towerFloor||1)*0.08; // 階が深いほど強い
     this.enemies = keys.map((key,i)=>{
-      const b=ENEMIES[key]; const sc=b.boss?1:f;
-      return { side:'enemy', key, name:b.name, art:b.art, boss:!!b.boss, spell:b.spell||null,
-        form2:b.form2||null, transformed:false,
+      const b=ENEMIES[key]; let sc=b.boss?1:f;
+      // 裏ボス アビスは 撃破するたび さらに強くなる（裏の裏ボス）
+      let suffix='';
+      if(key==='abyss'){
+        const clears=this.p.flags.abyssClears||0;
+        sc = 1 + clears*0.6;                 // 撃破ごとに +60%（後で調整しやすい係数）
+        if(clears>0) suffix=' ＋'+clears;     // 名前に強化段階を付与
+      }
+      return { side:'enemy', key, name:b.name+suffix, art:b.art, boss:!!b.boss, spell:b.spell||null,
+        form2:b.form2?Object.assign({},b.form2,{name:b.form2.name+suffix}):null, transformed:false,
+        inflict:b.inflict||null,
         maxHp:Math.round(b.hp*sc), hp:Math.round(b.hp*sc),
-        atk:Math.round(b.atk*sc), def:b.def, spd:b.spd||8,
+        atk:Math.round(b.atk*sc), def:Math.round(b.def*sc), spd:b.spd||8,
         xp:Math.round(b.xp*sc), gold:Math.round(b.gold*sc), alive:true, slot:i };
     });
     this.allies = this.buildAllies();
@@ -2735,6 +2830,8 @@ const game = {
   aliveAllies(){ return this.allies.filter(a=>a.alive); },
   // 敵の攻撃対象になり得る味方（HPを持たない姫は狙われない）
   targetableAllies(){ return this.allies.filter(a=>a.alive && !a.noVitals); },
+  // 回復できる味方（姫・デコイは除外）
+  healableAllies(){ return this.allies.filter(a=>a.alive && !a.noVitals && !a.isDecoy); },
 
   // ===== ターン開始：味方のコマンドを順に入力 =====
   startTurn(){
@@ -2777,6 +2874,12 @@ const game = {
     }
     if(this.allyQueue.length===0){ this.resolveTurn(); return; }
     this.curActor = this.allyQueue[0];
+    // デコイ（分身）は自動で攻撃する
+    if(this.curActor.isDecoy){
+      const tgt=this.aliveEnemies().sort((x,y)=>x.hp-y.hp)[0];
+      if(tgt) this.actions.push({ actor:this.curActor, type:'attack', target:tgt });
+      this.allyQueue.shift(); this.inputNextAlly(); return;
+    }
     // 眠っている味方は行動できない（起きる判定はターン解決時）
     if(this.curActor.status==='sleep'){
       this.actions.push({ actor:this.curActor, type:'asleep' });
@@ -2868,7 +2971,7 @@ const game = {
     if(this.autoCare){
       // 「いのちだいじに」：回復魔法とバフ(とくぎ)以外は使わない
       // 1) 味方の誰かがHP6割以下なら回復を最優先（HPを持つ仲間のみ＝姫は除外）
-      const hurtC = this.targetableAllies().some(x=>x.hp<=x.maxHp*0.6);
+      const hurtC = this.healableAllies().some(x=>x.hp<=x.maxHp*0.6);
       if(healSpell && hurtC && a.mp>=SPELLS[healSpell].mp){
         this.actions.push({ actor:a, type:'spell', spell:healSpell });
         this.allyQueue.shift(); this.inputNextAlly(); return;
@@ -2896,7 +2999,7 @@ const game = {
     }
 
     // 通常オート: 回復役は味方がHP4割以下なら回復を優先（HPを持つ仲間のみ＝姫は除外）
-    const hurt = this.targetableAllies().some(x=>x.hp<=x.maxHp*0.4);
+    const hurt = this.healableAllies().some(x=>x.hp<=x.maxHp*0.4);
     if(healSpell && hurt && a.mp>=SPELLS[healSpell].mp){
       this.actions.push({ actor:a, type:'spell', spell:healSpell });
       this.allyQueue.shift(); this.inputNextAlly(); return;
@@ -3044,9 +3147,12 @@ const game = {
     this.nextAction();
   },
   nextAction(){
+    // デコイが倒れていたら戦列から消す（消滅）
+    const dead=this.allies.find(a=>a.isDecoy && !a.alive);
+    if(dead){ this.allies=this.allies.filter(a=>!(a.isDecoy && !a.alive)); this.renderParty(); }
     // 勝敗判定
     if(this.aliveEnemies().length===0){ this.victory(); return; }
-    if(this.targetableAllies().length===0){ this.defeat(); return; }
+    if(this.healableAllies().length===0){ this.defeat(); return; }
     if(this.actIndex>=this.actions.length){ this.startTurn(); return; }
     const act=this.actions[this.actIndex++];
     const actor=act.actor;
@@ -3097,8 +3203,8 @@ const game = {
   doAllyAttack(actor, target){
     if(!target.alive) target=this.aliveEnemies()[0]; // 対象が既に倒れていたら振り直し
     if(!target){ this.nextAction(); return; }
-    // 勇者がブルトガング装備なら多段攻撃（攻撃ごとに味方HP回復）
-    if(actor.isHero && this.p.equip.weapon==='balmung'){
+    // 勇者がブルトガング/アルマス装備なら多段攻撃（攻撃ごとに味方HP回復）
+    if(actor.isHero && (this.p.equip.weapon==='balmung'||this.p.equip.weapon==='almace')){
       const hits=this.rollBalmungHits();
       this.doBalmungAttack(actor, target, hits, 1);
       return;
@@ -3150,6 +3256,9 @@ const game = {
     const crit=Math.random()<this.critChance(actor);
     let dmg=Math.max(1,actor.atk-target.def+this.randi(-2,2)); if(crit) dmg=Math.round(dmg*1.8);
     if(this.furyActive(actor)){ dmg=Math.round(dmg*2); if(n===1) this.fxFuryOn(); }
+    // アルマス：光ダメージ50固定を上乗せ（防御無視）
+    const lightDmg = (this.p.equip.weapon==='almace' && GEAR.almace.lightDmg) ? GEAR.almace.lightDmg : 0;
+    if(lightDmg) dmg += lightDmg;
     audio.se('hit'); this.flashEnemyOn(target.slot); this.fxTextOn('enemy',target.slot,dmg,crit?'crit':'');
     target.hp-=dmg;
     // ボス第二形態への変身チェック（多段の途中でも一度だけ）
@@ -3166,12 +3275,12 @@ const game = {
     }
     // 攻撃ごとの味方回復：最もHP割合の低い生存味方を回復（HPを持つ仲間のみ）
     const heal=this.rollBalmungHeal();
-    const tgt=this.targetableAllies().sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
+    const tgt=this.healableAllies().sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
     let healLine='';
     if(tgt){ const before=tgt.hp; tgt.hp=Math.min(tgt.maxHp,tgt.hp+heal); const h=tgt.hp-before;
       if(h>0){ this.fxHeal(); healLine=`\nまけんが ${tgt.name}の HPを ${h} かいふく！`; } }
     this.renderParty();
-    const dmgLine=`${head}${n}かいめ：${target.name}に ${dmg}の ダメージ！${crit?'（かいしん！）':''}${killed?`\n${target.name}を たおした！`:''}${healLine}`;
+    const dmgLine=`${head}${n}かいめ：${target.name}に ${dmg}の ダメージ！${lightDmg?'（＋ひかり50）':''}${crit?'（かいしん！）':''}${killed?`\n${target.name}を たおした！`:''}${healLine}`;
     this.message([dmgLine],()=>{
       if(n<hits && this.aliveEnemies().length>0){ this.renderEnemies(); this.doBalmungAttack(actor, target, hits, n+1); }
       else { this.renderEnemies(); this.cont(); }
@@ -3181,7 +3290,7 @@ const game = {
     const s=SPELLS[key]; actor.mp-=s.mp;
     if(s.type==='heal'){
       // 最もHP割合の低い生存味方を回復（HPを持つ仲間のみ＝姫は除外）
-      const tgt=this.targetableAllies().sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
+      const tgt=this.healableAllies().sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
       const before=tgt.hp; tgt.hp=Math.min(tgt.maxHp,tgt.hp+s.amt); const h=tgt.hp-before;
       audio.se('heal'); this.fxHeal(); this.renderParty();
       this.message([`${actor.name}は ${s.name}を となえた！\n${tgt.name}の HPが ${h} かいふく！`],()=>this.cont());
@@ -3276,7 +3385,11 @@ const game = {
       return;
     }
     let target;
-    if(this.provokeTurns>0 && this.provokeTarget && this.provokeTarget.alive){
+    // デコイ（分身）が生きていれば、敵の攻撃はデコイに集中する
+    const decoy=this.allies.find(a=>a.isDecoy && a.alive);
+    if(decoy){
+      target = (Math.random()<0.9) ? decoy : this.pick(this.targetableAllies());
+    } else if(this.provokeTurns>0 && this.provokeTarget && this.provokeTarget.alive){
       target = (Math.random()<0.85) ? this.provokeTarget : this.pick(this.targetableAllies());
     } else {
       target=this.pick(this.targetableAllies());
@@ -3301,7 +3414,7 @@ const game = {
       target.hp-=dmg; if(target.hp<=0) target.alive=false;
       this.addLove(this.randi(2,6));   // 攻撃を うけると あいゲージが たまる
       audio.se('flame'); this.shakeStage(); this.renderParty();
-      this.message([coverMsg+`${enemy.name}は ${sp.name||'やみのほのお'}を となえた！\n${target.name}に ${dmg}の ダメージ！`+(target.alive?'':`\n${target.name}は たおれた！`)],()=>this.cont());
+      this.message([coverMsg+`${enemy.name}は ${sp.name||'やみのほのお'}を となえた！\n${target.name}に ${dmg}の ダメージ！`+(target.alive?'':`\n${target.name}は たおれた！`)],()=>this.afterEnemyHit());
       return;
     }
     let dmg=Math.max(1,Math.round((enemy.atk-Math.floor(tdef/2)+this.randi(-2,2))*cut));
@@ -3315,7 +3428,31 @@ const game = {
       const sname={poison:'どく',sleep:'ねむり'}[target.status]||'いじょう';
       extra=`\n${target.name}は ${sname}に かかった！`;
     }
-    this.message([coverMsg+`${enemy.name}の こうげき！\n${target.name}に ${dmg}の ダメージ！`+(target.alive?'':`\n${target.name}は たおれた！`)+extra],()=>this.cont());
+    this.message([coverMsg+`${enemy.name}の こうげき！\n${target.name}に ${dmg}の ダメージ！`+(target.alive?'':`\n${target.name}は たおれた！`)+extra],()=>this.afterEnemyHit());
+  },
+  // 敵の攻撃後：勇者がHP半分を切ったら しんぴのよろいの デコイを発動
+  afterEnemyHit(){
+    const hero=this.allies.find(a=>a.isHero);
+    if(hero && hero.alive && !this._decoyUsed
+       && GEAR[this.p.equip.armor] && GEAR[this.p.equip.armor].decoy
+       && hero.hp>0 && hero.hp <= hero.maxHp*0.5){
+      this.spawnDecoy(hero); return;
+    }
+    this.cont();
+  },
+  // デコイ（分身）を生成。勇者と同じステータス。回復不可・0で消滅・1戦闘1回
+  spawnDecoy(hero){
+    this._decoyUsed=true;
+    const decoy={ side:'ally', isHero:false, isDecoy:true, key:'decoy', name:'ゆうしゃの ぶんしん',
+      art:hero.art, lv:hero.lv, hp:hero.maxHp, maxHp:hero.maxHp, mp:0, maxMp:0,
+      atk:hero.atk, def:hero.def, spd:hero.spd, spells:[], alive:true, status:'' };
+    this.allies.push(decoy);
+    audio.se('levelup'); this.renderParty();
+    this.message([
+      'しんぴの よろいが ひかりを はなった！',
+      'ゆうしゃの ぶんしんが あらわれた！',
+      'てきの こうげきは ぶんしんに あつまる！（かいふくは できない）'
+    ],()=>this.cont());
   },
 
   damageEnemy(target,dmg,crit,msg){
@@ -3349,6 +3486,7 @@ const game = {
     target.name=target.form2.name;   // 名前変更
     if(target.form2.art) target.art=target.form2.art;
     if(target.form2.spell) target.spell=target.form2.spell;
+    if(target.form2.inflict) target.inflict=target.form2.inflict;
     audio.se('damage'); this.shakeStage();
     audio.bgm('garzos2');
     const fallName = target.key==='blight' ? 'おおもとの やみ' : 'ガルゾス';
@@ -3405,6 +3543,13 @@ const game = {
   // ひのきのぼうきれの戦闘カウントを進める。100回で覚醒
   tickTwig(){
     const p=this.p;
+    // ひのきのえだ（クエスト2）：200戦カウント
+    if(p.equip.weapon==='branch'){
+      p.flags.branchBattles=(p.flags.branchBattles||0)+1;
+      const left=200-p.flags.branchBattles;
+      if(left>0) return [`ひのきの えだが かすかに ふるえている…（あと ${left}かい）`];
+      return ['ひのきの えだが つよく ふるえた！','どくろの ところへ もどろう…'];
+    }
     if(p.equip.weapon!=='twig') return [];
     p.flags.twigBattles=(p.flags.twigBattles||0)+1;
     const left=100-p.flags.twigBattles;
@@ -3745,7 +3890,7 @@ const game = {
     }
     // 宝箱
     (CHESTS.filter(c=>c.map===this.p.map)).forEach(c=>{
-      if(this.p.chests.includes(c.id)) return;
+      if(this.chestTaken(c.id)) return;
       const vx=c.x-camX,vy=c.y-camY;
       if(vx>=0&&vx<VIEW&&vy>=0&&vy<VIEW) this.dotChest(ctx,vx*t,vy*t,t);
     });
