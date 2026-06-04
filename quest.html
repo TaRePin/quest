@@ -881,7 +881,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='2.4';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='2.5';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1669,7 +1669,8 @@ const game = {
   doorIsOpen(){ return this.p.map==='elfcave' ? this.p.flags.elfDoorOpen : this.p.flags.doorOpen; },
   // 最強裏ボスの洞窟が湖に現れる条件：ブルトガング・2次職・姫加入・エルフのかご が揃う
   abyssRevealed(){ const p=this.p;
-    return p.ownedGear.includes('balmung') && p.flags.jobChanged2 && p.flags.princessJoined && p.flags.elfBasket;
+    const hasLegendWeapon = p.ownedGear.includes('balmung') || p.ownedGear.includes('almace');
+    return hasLegendWeapon && p.flags.jobChanged2 && p.flags.princessJoined && p.flags.elfBasket;
   },
   // 宝箱が取得済みか。ブルトガング保有なら ドクロの宝箱(ひのきのぼうきれ)は取得済み扱い
   chestTaken(id){
@@ -2609,6 +2610,7 @@ const game = {
   },
   // タイトルへ戻る（セーブ確認つき）
   titleMenu(){
+    this.closeCmd();   // 先にフィールドメニューを閉じ、確認メッセージが枠の後ろに隠れないように
     this.message(['タイトルに もどりますか？','（きろくして いない しんちょくは うしなわれます）'],()=>{
       this.cmdCtx='field';
       this.cmdItems=[
@@ -2620,6 +2622,7 @@ const game = {
   },
   // どこでもセーブ
   saveMenu(){
+    this.closeCmd();   // 先にフィールドメニューを閉じ、確認メッセージが枠の後ろに隠れないように
     this.message(['ぼうけんの しょに きろくしますか？'],()=>{
       this.cmdCtx='field';
       this.cmdItems=[
