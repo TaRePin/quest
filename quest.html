@@ -881,7 +881,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='2.2';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='2.3';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -2438,6 +2438,8 @@ const game = {
           'どくろ「200かい たたかえ。みちは きけんに みちる（エンカウント1.3ばい）。」',
         ],()=>{
           // ブルトガング回収、ひのきのえだ強制装備
+          // skull_chestを取得済みに固定（balmung回収後も宝箱が復活しないように）
+          if(!p2.chests.includes('skull_chest')) p2.chests.push('skull_chest');
           p2.ownedGear=p2.ownedGear.filter(g=>g!=='balmung');
           if(!p2.ownedGear.includes('branch')) p2.ownedGear.push('branch');
           p2.equip.weapon='branch'; p2.flags.cursed=true;
