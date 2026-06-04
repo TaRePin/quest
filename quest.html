@@ -888,7 +888,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='2.6';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='2.7';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -2770,7 +2770,7 @@ const game = {
     const inB=this.mode==='battle';
     const el=document.getElementById(inB?'bMsgInd':'msgInd'); if(!el) return;
     if(more){
-      el.innerHTML='<span class="more">▽</span>';
+      el.innerHTML='<span class="more">▽</span><span class="tap-label">タップ</span>';
     } else {
       el.innerHTML='<span class="tap-mark">〇</span><span class="tap-label">タップ</span>';
       const mark=el.querySelector('.tap-mark'); let on=false;
@@ -3490,14 +3490,14 @@ const game = {
       const sp=SPELLS[enemy.spell] || {name:'やみのほのお',base:enemy.spell==='darkflame'?40:18};
       let dmg=Math.max(1,Math.round(((sp.base||20)+this.randi(-3,3)-Math.floor(tdef/3))*cut));
       target.hp-=dmg; if(target.hp<=0) target.alive=false;
-      this.addLove(this.randi(2,6));   // 攻撃を うけると あいゲージが たまる
+      this.addLove(this.randi(8,16));   // 戦闘中の被ダメージ：あいゲージが よくたまる
       audio.se('flame'); this.shakeStage(); this.renderParty();
       this.message([coverMsg+`${enemy.name}は ${sp.name||'やみのほのお'}を となえた！\n${target.name}に ${dmg}の ダメージ！`+(target.alive?'':`\n${target.name}は たおれた！`)],()=>this.afterEnemyHit());
       return;
     }
     let dmg=Math.max(1,Math.round((enemy.atk-Math.floor(tdef/2)+this.randi(-2,2))*cut));
     target.hp-=dmg; if(target.hp<=0) target.alive=false;
-    this.addLove(this.randi(2,6));   // 攻撃を うけると あいゲージが たまる
+    this.addLove(this.randi(8,16));   // 戦闘中の被ダメージ：あいゲージが よくたまる
     audio.se('damage'); this.shakeStage(); this.renderParty();
     let extra='';
     // 状態異常の付与（対象が生存・無状態のときのみ）
@@ -3583,7 +3583,7 @@ const game = {
       this.p.flags.won=true; this.ending(); return;
     }
     audio.se('win'); this.syncAlliesBack();
-    this.addLove(this.randi(15,30));   // 戦闘を終えるたび あいゲージが たまる
+    this.addLove(this.randi(30,55));   // 戦闘勝利：あいゲージが もっともたまる
     const totalXp=this.enemies.reduce((s,e)=>s+e.xp,0);
     const totalGold=this.enemies.reduce((s,e)=>s+e.gold,0);
     this.p.gold+=totalGold;
