@@ -28,7 +28,7 @@
   .t-speed-row{display:flex;gap:14px;justify-content:center;font-size:14px;color:#e8e2cf;letter-spacing:.08em;}
   .t-spd{position:relative;padding-left:14px;cursor:pointer;}
   .t-copy{position:absolute;bottom:22px;left:0;right:0;font-size:13px;color:#b9a7ff;letter-spacing:.12em;}
-  .t-ver{color:#7e8bb5;font-size:11px;}
+  .t-ver{color:#7e8bb5;font-size:11px;padding:4px 8px;cursor:pointer;}
   .t-update{margin-top:22px;display:flex;flex-direction:column;align-items:center;gap:6px;}
   .t-upbtn{font-size:12px;color:#9fc0ff;letter-spacing:.12em;border:1px solid #3a4a72;
     border-radius:6px;padding:5px 12px;cursor:pointer;background:rgba(20,32,64,.5);}
@@ -881,7 +881,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='2.0';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='2.2';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1143,6 +1143,12 @@ const game = {
     // バージョン表示＆アップデート確認
     const vt=document.getElementById('verText'); if(vt) vt.textContent='ver '+GAME_VERSION;
     this.tap(document.getElementById('updateBtn'),()=>this.checkUpdate());
+    // 隠し操作：バージョン表記を3回タップすると アップデート演出デモを再生
+    if(vt){ this._verTaps=0;
+      this.tap(vt,()=>{ this._verTaps=(this._verTaps||0)+1;
+        if(this._verTaps>=3){ this._verTaps=0; this.demoUpdate(); }
+      });
+    }
     // メッセージ速度セレクタ
     document.querySelectorAll('#speedRow .t-spd').forEach(el=>{
       this.tap(el,()=>this.setMsgSpeed(el.dataset.spd));
@@ -1305,6 +1311,29 @@ const game = {
         setTimeout(()=>location.reload(true), 500);
       }, 300); } };
     step();
+  },
+  // 隠しデモ：実際の更新はせず、アップデート演出だけを再生する（バージョン表記3回タップ）
+  demoUpdate(){
+    const msg=document.getElementById('updateMsg');
+    const bar=document.getElementById('updateBar');
+    const fill=document.getElementById('updateBarFill');
+    const btn=document.getElementById('updateBtn');
+    const setMsg=t=>{ if(msg) msg.textContent=t; };
+    if(this._demoRunning) return; this._demoRunning=true;
+    setMsg('かくにん ちゅう…');
+    if(btn) btn.style.pointerEvents='none';
+    setTimeout(()=>{
+      setMsg('（デモ）あたらしい ばんが あります！ こうしん します…');
+      bar.classList.add('show'); fill.style.width='0';
+      let p=0;
+      const step=()=>{ p+=Math.random()*16+6; if(p>100)p=100; fill.style.width=p+'%';
+        if(p<100){ setTimeout(step, 120); }
+        else { setTimeout(()=>{ setMsg('（デモ）こうしん かんりょう！');
+          setTimeout(()=>{ setMsg(''); bar.classList.remove('show'); fill.style.width='0';
+            if(btn) btn.style.pointerEvents='auto'; this._demoRunning=false; }, 1200);
+        }, 300); } };
+      step();
+    }, 400);
   },
   async continueGame(){    try{ const r=await STORE.get(SAVE_KEY);
       const saved=JSON.parse(r.value);
@@ -2345,7 +2374,10 @@ const game = {
   },
 
   // ===== どくろの隠しイベント（エクスカリバー → ひのきのぼうきれ）=====
-  skullTalk(){ const p=this.p, st=p.flags.excaliburStage;
+  skullTalk(){ const p=this.p;
+    // ブルトガング所持＝1回目のどくろクエストは完了済み。stageを3に補正（デバッグ開始や途中保存対策）
+    if(p.ownedGear.includes('balmung') && p.flags.excaliburStage<3){ p.flags.excaliburStage=3; }
+    const st=p.flags.excaliburStage;
     if(st===0){ p.flags.excaliburStage=1;
       this.message([
         'どくろ「フォフォフォ… よくぞ ここまで。」',
