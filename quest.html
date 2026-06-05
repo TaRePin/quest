@@ -676,6 +676,7 @@ const ENEMIES = {
   slime:  { name:'スライム',       art:'🟦', hp:7,  atk:6,  def:3,  spd:4,  xp:2,  gold:3  },
   ghost:  { name:'まよいびと',     art:'👻', hp:11, atk:9,  def:4,  spd:9,  xp:4,  gold:6  },
   wolf:   { name:'のら おおかみ',  art:'🐺', hp:17, atk:12, def:5,  spd:14, xp:7,  gold:10 },
+  lvupper:{ name:'レベルアッパー', art:'🧝', hp:15, atk:8,  def:2,  spd:6,  xp:0,  gold:0, sell:true },
   bat:    { name:'ほら こうもり',  art:'🦇', hp:13, atk:11, def:3,  spd:18, xp:6,  gold:8, inflict:{status:'poison',rate:0.3} },
   mage:   { name:'やみの まどうし',art:'🧙', hp:16, atk:13, def:3,  spd:10, xp:12, gold:18, spell:'flame', inflict:{status:'sleep',rate:0.25} },
   golem:  { name:'いわの きょじん',art:'🗿', hp:34, atk:17, def:10, spd:3,  xp:20, gold:28 },
@@ -698,18 +699,22 @@ const ENC_GROUPS = {
   world:[
     ['slime'], ['slime','slime'], ['ghost'], ['slime','ghost'],
     ['wolf'], ['bat','bat'], ['ghost','slime'], ['mage'],
+    ['lvupper'],
   ],
   cave1:[
     ['ghost','ghost'], ['wolf'], ['bat','bat'], ['wolf','ghost'],
     ['mage'], ['golem'], ['mage','bat'], ['wolf','wolf'],
+    ['lvupper'],
   ],
   cave2:[
     ['golem'], ['reaper'], ['mage','golem'], ['golem','golem'],
     ['reaper','mage'], ['golem','reaper'],
+    ['lvupper'],
   ],
   elf:[
     ['rootworm'], ['shade'], ['rootworm','shade'], ['shade','shade'],
     ['rootworm','rootworm'], ['treant'],
+    ['lvupper'],
   ],
   elfcave:[
     ['rootworm','shade'], ['treant'], ['shade','shade','rootworm'],
@@ -891,7 +896,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='3.5';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='3.6';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -3532,6 +3537,46 @@ const game = {
     this.nextAction();
   },
   doEnemyAction(enemy){
+    // レベルアッパー：売りつけ行動（1回のみ。断ったか買ったら以降は普通に攻撃）
+    if(enemy.sell && !enemy._offered){
+      enemy._offered=true;
+      audio.se('select');
+      this.message([
+        'レベルアッパー「よう ゆうしゃさん！いい モノを うって やろうか！」',
+        'レベルアッパー「なんと いっきに 1レベルアップ！おねだんは たった 10000ゴールド！」',
+        'どうする？',
+      ],()=>{
+        this.cmdCtx='battle';
+        this.cmdItems=[
+          { label:'かう（10000G）', act:()=>{
+            this.closeCmd();
+            if(this.p.gold<10000){
+              this.message(['レベルアッパー「おっと おかねが たりないぜ！はは！」'],()=>this.cont()); return;
+            }
+            this.p.gold-=10000;
+            const msgs=this.checkLevel(999); // 強制的に経験値を足してレベルアップさせる
+            // checkLevelを使わずに直接レベルアップ処理
+            this.p.lv+=1;
+            this.p.maxHp+=8; this.p.maxMp+=4; this.p.baseAtk+=1; this.p.baseDef+=1;
+            this.p.hp=this.p.maxHp; this.p.mp=this.p.maxMp;
+            const l=LEARN[this.p.lv]; if(l&&!this.p.spells.includes(l)) this.p.spells.push(l);
+            audio.se('levelup'); this.updateStrip();
+            const lines=[
+              'レベルアッパー「まいど！またきてね～！」',
+              `ゆうしゃは レベル ${this.p.lv} に あがった！`,
+              `さいだいHP+8 こうげき+1 まもり+1`,
+            ];
+            if(l) lines.push(`じゅもん「${SPELLS[l]?.name||l}」を おぼえた！`);
+            this.message(lines,()=>this.cont());
+          }},
+          { label:'いらない', act:()=>{
+            this.closeCmd();
+            this.message(['レベルアッパー「けちんぼめ！そうなら てきとして あつかうぜ！」'],()=>this.cont());
+          }},
+        ]; this.cmdSel=0; this.renderCmd('cmdBox');
+      });
+      return;
+    }
     // あぶないみずぎ装備中：低確率で敵を魅了し行動不能に
     const charmRate = GEAR[this.p.equip.armor] && GEAR[this.p.equip.armor].charm;
     if(charmRate && Math.random()<charmRate){
