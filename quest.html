@@ -223,10 +223,8 @@
   .love-badge{color:#ff8ad0;font-size:10px;font-weight:bold;animation:bl 1s steps(1) infinite;}
   .p-unit .hbar{margin-top:2px;}
   #bAuto{font-size:12px;padding:5px 10px;border:2px solid #888;border-radius:5px;background:#000;cursor:pointer;letter-spacing:.08em;white-space:nowrap;}
-  #modeBar{position:absolute;left:8px;bottom:108px;z-index:30;display:flex;flex-direction:row;align-items:center;gap:6px;pointer-events:none;}
-  #modeBar #bAuto{pointer-events:auto;}
-  #modeBar.battle-mode{left:auto;right:8px;top:8px;bottom:auto;flex-direction:column;align-items:flex-end;}
-  #modeLabel{font-size:11px;color:#9fc0ff;letter-spacing:.08em;background:rgba(0,0,16,.6);padding:2px 7px;border-radius:4px;border:1px solid #2a3a5a;}
+  #modeBar{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:6px;}
+  #modeLabel{font-size:10px;color:#9fc0ff;letter-spacing:.06em;background:rgba(0,0,16,.7);padding:2px 6px;border-radius:4px;border:1px solid #2a3a5a;white-space:nowrap;}
   #bLove{position:absolute;right:8px;top:42px;z-index:7;display:flex;align-items:center;gap:4px;
     background:rgba(0,0,0,.55);padding:3px 6px;border-radius:5px;}
   #bLove .lv-label{font-size:10px;color:#ff9ad0;letter-spacing:.05em;}
@@ -305,10 +303,12 @@
     <div class="act-col">
       <button class="abtn" id="btnA">けってい</button>
       <button class="abtn menu" id="btnMenu">めいれい</button>
+      <div id="modeBar">
+        <span id="modeLabel">🗺 フィールド</span>
+        <div id="bAuto">AUTO ▢</div>
+      </div>
     </div>
   </div>
-
-  <div id="battle">
     <div id="bShake" class="b-stage">
       <div class="b-far"></div>
       <div class="b-grid"></div>
@@ -320,11 +320,6 @@
     <div id="bMsg" class="win"><div id="bMsgText"></div><div id="bMsgInd" class="msg-ind"></div></div>
     <div id="bCmd" class="win"></div>
     <div id="bSub" class="win"></div>
-  </div>
-
-  <div id="modeBar">
-    <span id="modeLabel">🗺 フィールド</span>
-    <div id="bAuto">AUTO ▢</div>
   </div>
 
   <div id="shop">
@@ -904,7 +899,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='4.0';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='4.1';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1627,6 +1622,8 @@ const game = {
     const w=WARPS.find(w=>w.map===p.map&&w.x===nx&&w.y===ny);
     if(w){
       if(t==='>') this.promptWarp(w);   // 階段だけ「すすむ/まだ」を聞く
+      else if(t==='O'){                 // 塔の入口：乗ったとき確認ダイアログ
+        this.enterTowerPrompt(); }
       else this.doWarp(w);              // 村・町・城・洞窟の出入りは乗ったら即入場
       return;
     }
@@ -3165,17 +3162,13 @@ const game = {
     this.refreshModeLabel();
   },
   refreshModeLabel(){
-    const el=document.getElementById('modeLabel');
-    const bar=document.getElementById('modeBar');
-    if(!el) return;
+    const el=document.getElementById('modeLabel'); if(!el) return;
     const p=this.p;
     if(this.mode==='battle'){
-      bar&&bar.classList.add('battle-mode');
       if(this.isAbyssBattle)      el.textContent='💀 裏ボス戦';
       else if(this.isBossBattle)  el.textContent='👹 ボス戦';
       else                        el.textContent='⚔ 戦闘モード';
     } else {
-      bar&&bar.classList.remove('battle-mode');
       if(this.towerSecret)        el.textContent='🏰 ひみつモード';
       else if(p&&p.map==='tower') el.textContent='🏰 むげんの とう';
       else if(p&&['castle','jobcastle'].includes(p.map))     el.textContent='🏰 非戦闘';
