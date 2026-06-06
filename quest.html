@@ -223,8 +223,9 @@
   .love-badge{color:#ff8ad0;font-size:10px;font-weight:bold;animation:bl 1s steps(1) infinite;}
   .p-unit .hbar{margin-top:2px;}
   #bAuto{font-size:12px;padding:5px 10px;border:2px solid #888;border-radius:5px;background:#000;cursor:pointer;letter-spacing:.08em;white-space:nowrap;}
-  #modeBar{position:absolute;right:8px;top:8px;z-index:30;display:flex;flex-direction:column;align-items:flex-end;gap:4px;pointer-events:none;}
+  #modeBar{position:absolute;left:8px;bottom:108px;z-index:30;display:flex;flex-direction:row;align-items:center;gap:6px;pointer-events:none;}
   #modeBar #bAuto{pointer-events:auto;}
+  #modeBar.battle-mode{left:auto;right:8px;top:8px;bottom:auto;flex-direction:column;align-items:flex-end;}
   #modeLabel{font-size:11px;color:#9fc0ff;letter-spacing:.08em;background:rgba(0,0,16,.6);padding:2px 7px;border-radius:4px;border:1px solid #2a3a5a;}
   #bLove{position:absolute;right:8px;top:42px;z-index:7;display:flex;align-items:center;gap:4px;
     background:rgba(0,0,0,.55);padding:3px 6px;border-radius:5px;}
@@ -903,7 +904,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='3.9';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='4.0';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1439,8 +1440,14 @@ const game = {
   },
   async continueGame(){    try{ const r=await STORE.get(SAVE_KEY);
       const saved=JSON.parse(r.value);
-      this.p=this.migrateSave(saved);     // 新項目を初期値で補完してから採用
-      this.p.status='';                    // ロード時は状態異常をリセット（毒のまま再開しない）
+      this.p=this.migrateSave(saved);
+      this.p.status='';
+      // 塔でセーブしていた場合：ランダム生成マップを再生成して入口から復帰
+      if(this.p.map==='tower'){
+        const floor=this.p.towerFloor||1;
+        this.tower=generateTower(floor);
+        this.p.x=this.tower.entrance[0]; this.p.y=this.tower.entrance[1]; this.p.dir='up';
+      }
       audio.init(); audio.resume(); audio.bgm(this.bgmFor());
       document.getElementById('title').style.display='none';
       this.enterField(); this.toast('ぼうけんの しょ から さいかい');
@@ -2879,6 +2886,8 @@ const game = {
       // タイプ完了 → まだ次ページがあれば▽点滅、最後なら〇◎＋タップ
       this.showMsgInd(this.msgQueue.length>1);
       if(this.auto&&this.mode==='battle') this._autoAdv();
+      // ひみつモード中はフィールドメッセージも自動送り
+      if(this.towerSecret&&this.mode==='field') this._autoAdv();
     };
     const tick=()=>{ if(!this._typing){ done(); return; }
       txt.textContent=full.slice(0,i);
@@ -3090,7 +3099,6 @@ const game = {
       this.toast('ひみつモード OFF');
     }
   },
-  // ひみつモードの自動進行ティック（BFS経路探索で壁を避けて階段へ移動）
   _towerSecretTick(){
     if(!this.towerSecret || this.p.map!=='tower' || this.mode!=='field') return;
     // HPが低ければ回復アイテムを自動使用
@@ -3105,34 +3113,41 @@ const game = {
     if(m.rows[this.p.y]&&m.rows[this.p.y][this.p.x]==='>'){
       setTimeout(()=>{ if(this.towerSecret&&this.mode==='field') this.towerNextFloor(); }, 400); return;
     }
-    // BFSで階段タイルへの最短経路を探す
+    // BFSで「未開封宝箱C」または「階段>」への最短経路を探す
+    // 未開封宝箱を優先（あれば先に回収）
     const DIRS={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
-    const rows=m.rows, H=rows.length, W=rows[0].length;
+    const rows=m.rows, H=rows.length, W=(rows[0]||'').length;
+    const opened=this.tower&&this.tower.opened||{};
+    const isGoal=(x,y)=>{
+      const t=rows[y]&&rows[y][x];
+      if(t==='>') return 'stair';
+      if(t==='C' && !opened[x+','+y]) return 'chest';
+      return null;
+    };
     const canStep=(x,y)=>{
       if(y<0||y>=H||x<0||x>=W) return false;
       const t=rows[y][x];
-      return !SOLID.has(t) && t!=='~';  // 壁・木・山・水以外は通れる
+      return !SOLID.has(t) && t!=='~';
     };
-    // BFS
-    const visited=new Set(); const queue=[[this.p.x, this.p.y, []]];
+    // BFS実行
+    const visited=new Set(); const queue=[[this.p.x,this.p.y,[]]];
     visited.add(this.p.x+','+this.p.y);
-    let firstDir=null;
+    let firstDirChest=null, firstDirStair=null;
     bfsLoop: while(queue.length){
       const [cx,cy,path]=queue.shift();
       for(const [dir,[dx,dy]] of Object.entries(DIRS)){
-        const nx=cx+dx, ny=cy+dy;
-        const key=nx+','+ny;
-        if(visited.has(key)||!canStep(nx,ny)) continue;
-        visited.add(key);
-        const newPath=[...path,dir];
-        if(rows[ny][nx]==='>'){firstDir=newPath[0]; break bfsLoop;}
-        queue.push([nx,ny,newPath]);
+        const nx=cx+dx, ny=cy+dy, key=nx+','+ny;
+        if(visited.has(key)) continue;
+        const goal=isGoal(nx,ny);
+        if(goal==='chest' && !firstDirChest){ firstDirChest=path.length?path[0]:dir; }
+        if(goal==='stair' && !firstDirStair){ firstDirStair=path.length?path[0]:dir; }
+        if(firstDirChest&&firstDirStair) break bfsLoop;
+        if(canStep(nx,ny)){ visited.add(key); queue.push([nx,ny,[...path,dir]]); }
       }
     }
-    if(!firstDir){ // 階段が見つからない（迷子）→少し待ってリトライ
-      setTimeout(()=>this._towerSecretTick(), 800); return;
-    }
-    // 1ステップ移動して次のティックへ
+    // 未開封宝箱があれば優先、なければ階段へ
+    const firstDir = firstDirChest || firstDirStair;
+    if(!firstDir){ setTimeout(()=>this._towerSecretTick(), 800); return; }
     setTimeout(()=>{
       if(!this.towerSecret||this.mode!=='field') return;
       this.tryMove(firstDir);
@@ -3150,14 +3165,24 @@ const game = {
     this.refreshModeLabel();
   },
   refreshModeLabel(){
-    const el=document.getElementById('modeLabel'); if(!el) return;
+    const el=document.getElementById('modeLabel');
+    const bar=document.getElementById('modeBar');
+    if(!el) return;
+    const p=this.p;
     if(this.mode==='battle'){
+      bar&&bar.classList.add('battle-mode');
       if(this.isAbyssBattle)      el.textContent='💀 裏ボス戦';
       else if(this.isBossBattle)  el.textContent='👹 ボス戦';
       else                        el.textContent='⚔ 戦闘モード';
-    } else if(this.towerSecret){  el.textContent='🏰 ひみつモード'; }
-    else if(this.p&&this.p.map==='tower') el.textContent='🏰 むげんの とう';
-    else                          el.textContent='🗺 フィールド';
+    } else {
+      bar&&bar.classList.remove('battle-mode');
+      if(this.towerSecret)        el.textContent='🏰 ひみつモード';
+      else if(p&&p.map==='tower') el.textContent='🏰 むげんの とう';
+      else if(p&&['castle','jobcastle'].includes(p.map))     el.textContent='🏰 非戦闘';
+      else if(p&&['town1','town2','elftown','elfvillage','elfjob'].includes(p.map)) el.textContent='🏘 非戦闘';
+      else if(p&&['elf'].includes(p.map))                    el.textContent='🌿 エルフの くに';
+      else                        el.textContent='🗺 フィールド';
+    }
   },
   closeBattleSub(){ this.cmdCtx=''; document.getElementById('bSub').style.display='none'; },
   // あいゲージを加算（姫が仲間にいるときだけ）。満タン100で頭打ち
@@ -3791,7 +3816,8 @@ const game = {
     if(target.form2.inflict) target.inflict=target.form2.inflict;
     audio.se('damage'); this.shakeStage();
     audio.bgm(target.key==='abyss' ? 'abyss2' : 'garzos2');
-    const fallName = target.key==='blight' ? 'おおもとの やみ' : 'ガルゾス';
+    const fallNames={ garzos:'ガルゾス', blight:'えだ こうろの ヌァザ', abyss:'ねむれる ふくりゅう アビス' };
+    const fallName = fallNames[target.key] || target.key;
     this.message([msg, `${fallName}は たおれた…`,'…かに みえた！','やみの ちからが あふれだす！',`${target.name}が しんの すがたを あらわした！`],()=>{
       this.renderEnemies(); this.cont();
     });
