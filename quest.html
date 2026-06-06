@@ -677,14 +677,14 @@ const ENEMIES = {
   ghost:  { name:'まよいびと',     art:'👻', hp:11, atk:9,  def:4,  spd:9,  xp:4,  gold:6  },
   wolf:   { name:'のら おおかみ',  art:'🐺', hp:17, atk:12, def:5,  spd:14, xp:7,  gold:10 },
   lvupper:{ name:'レベルアッパー', art:'🧝', hp:15, atk:8,  def:2,  spd:6,  xp:0,  gold:0, sell:true },
-  bat:    { name:'ほら こうもり',  art:'🦇', hp:13, atk:11, def:3,  spd:18, xp:6,  gold:8, inflict:{status:'poison',rate:0.3} },
+  bat:    { name:'ほら こうもり',  art:'🦇', hp:13, atk:11, def:3,  spd:18, xp:6,  gold:8, inflict:{status:'poison',rate:0.2} },
   mage:   { name:'やみの まどうし',art:'🧙', hp:16, atk:13, def:3,  spd:10, xp:12, gold:18, spell:'flame', inflict:{status:'sleep',rate:0.25} },
   golem:  { name:'いわの きょじん',art:'🗿', hp:34, atk:17, def:10, spd:3,  xp:20, gold:28 },
   reaper: { name:'しにがみ',       art:'☠️', hp:46, atk:22, def:9,  spd:12, xp:30, gold:42, spell:'flame' },
   garzos: { name:'闇の王 ガルゾス', art:'👹', hp:520,atk:52, def:28, spd:16, xp:0,  gold:0, boss:true, spell:'darkflame',
             form2:{ name:'真ガルゾス・しんえん', art:'😈', spell:'darkflame' } },
   // --- エルフ国（世界樹のエピソード）の敵 ---
-  rootworm:{ name:'こんを むしばむ もの', art:'🐛', hp:85, atk:36, def:16, spd:15, xp:70, gold:75, inflict:{status:'poison',rate:0.4} },
+  rootworm:{ name:'こんを むしばむ もの', art:'🐛', hp:85, atk:36, def:16, spd:15, xp:70, gold:75, inflict:{status:'poison',rate:0.25} },
   shade:   { name:'もりの しょうき',   art:'🌫️', hp:100,atk:42, def:18, spd:22, xp:90, gold:95, spell:'flame', inflict:{status:'sleep',rate:0.35} },
   treant:  { name:'くろずんだ きょぼく', art:'🌲', hp:180,atk:50, def:30, spd:7,  xp:150,gold:170 },
   // エルフ国ボス: 世界樹を枯らす元凶
@@ -896,7 +896,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='3.6';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='3.7';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1433,6 +1433,7 @@ const game = {
   async continueGame(){    try{ const r=await STORE.get(SAVE_KEY);
       const saved=JSON.parse(r.value);
       this.p=this.migrateSave(saved);     // 新項目を初期値で補完してから採用
+      this.p.status='';                    // ロード時は状態異常をリセット（毒のまま再開しない）
       audio.init(); audio.resume(); audio.bgm(this.bgmFor());
       document.getElementById('title').style.display='none';
       this.enterField(); this.toast('ぼうけんの しょ から さいかい');
@@ -1549,6 +1550,7 @@ const game = {
     this.tap(document.getElementById('msgBox'),()=>this.advanceMsg());
     this.tap(document.getElementById('bMsg'),()=>this.advanceMsg());
     this.tap(document.getElementById('bAuto'),()=>this.toggleAuto());
+    this.hold(document.getElementById('bAuto'),2000,()=>this.toggleTowerSecret());
     window.addEventListener('keydown',e=>{
       const k={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'}[e.key];
       if(k){ e.preventDefault(); this.tryMove(k); }
@@ -2388,6 +2390,10 @@ const game = {
     p.map='tower'; p.towerFloor=floor;
     p.x=this.tower.entrance[0]; p.y=this.tower.entrance[1]; p.dir='up';
     audio.bgm('cave'); this.draw(); this.setPlace();
+    if(this.towerSecret){
+      // ひみつモード：階層メッセージをスキップして即座に進行
+      setTimeout(()=>this._towerSecretTick(), 300); return;
+    }
     this.message([`とうの ${floor}かいに たどりついた。`,'かいだん(>)を めざせ。']);
   },
   towerNextFloor(){
@@ -3064,6 +3070,64 @@ const game = {
     const b=document.getElementById('bAuto'); if(!b) return;
     b.classList.toggle('on',!!this.auto);
     b.textContent = this.autoMode===2 ? 'いのち ▣' : (this.autoMode===1 ? 'AUTO ▣' : 'AUTO ▢');
+    if(this.towerSecret){ b.textContent='ひみつ ★'; b.classList.add('on'); }
+  },
+  // ひみつモード：無限の塔でひたすら自動登り（戦闘オート＋階段自動進行）
+  toggleTowerSecret(){
+    this.towerSecret=!this.towerSecret;
+    audio.se('levelup');
+    const b=document.getElementById('bAuto'); if(!b) return;
+    if(this.towerSecret){
+      this.auto=true; this.autoMode=1; this.autoCare=true;
+      b.textContent='ひみつ ★'; b.classList.add('on');
+      this.toast('【ひみつモード】むげんの とうを のぼりつづける');
+      // 塔にいなければ塔に誘導するだけ
+      if(this.p.map==='tower') this._towerSecretTick();
+    } else {
+      this.towerSecret=false; this.autoMode=0; this.auto=false; this.autoCare=false;
+      this.refreshAutoBtn();
+      this.toast('ひみつモード OFF');
+    }
+  },
+  // ひみつモードの自動進行ティック（フィールドモード時）
+  _towerSecretTick(){
+    if(!this.towerSecret || this.p.map!=='tower' || this.mode!=='field') return;
+    // HPが低ければ回復アイテムを自動使用
+    if(this.p.hp < this.p.maxHp*0.3){
+      const keys=Object.keys(ITEMS);
+      const hi=this.p.items.findIndex((n,i)=>n>0 && ITEMS[keys[i]]?.type==='heal');
+      if(hi>=0){ const it=ITEMS[keys[hi]];
+        this.p.items[hi]--; this.p.hp=Math.min(this.p.maxHp,this.p.hp+(it.amt||50)); this.updateStrip(); }
+    }
+    const m=this.curMap(); if(!m) return;
+    // 足元が階段なら即昇る
+    if(m.rows[this.p.y]&&m.rows[this.p.y][this.p.x]==='>'){
+      setTimeout(()=>{ if(this.towerSecret&&this.mode==='field') this.towerNextFloor(); }, 400); return;
+    }
+    // 階段タイルを探してひとマス近づく
+    let stx=-1,sty=-1;
+    outer: for(let y=0;y<m.rows.length;y++) for(let x=0;x<(m.rows[y]||'').length;x++)
+      if(m.rows[y][x]==='>'){stx=x;sty=y;break outer;}
+    if(stx<0){ return; }
+    const dirs=['up','down','left','right'];
+    const dxdy={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+    // 現在地から階段へ向かう方向を選ぶ
+    const best=dirs.sort((a,b)=>{
+      const [ax,ay]=dxdy[a],[bx,by]=dxdy[b];
+      const da=Math.abs(this.p.x+ax-stx)+Math.abs(this.p.y+ay-sty);
+      const db=Math.abs(this.p.x+bx-stx)+Math.abs(this.p.y+by-sty);
+      return da-db;
+    })[0];
+    setTimeout(()=>{ if(this.towerSecret&&this.mode==='field'){
+      this.tryMove(best);
+      setTimeout(()=>this._towerSecretTick(),320);
+    }},200);
+  },
+  refreshAutoBtn(){
+    const b=document.getElementById('bAuto'); if(!b) return;
+    b.classList.toggle('on',!!this.auto);
+    b.textContent = this.autoMode===2 ? 'いのち ▣' : (this.autoMode===1 ? 'AUTO ▣' : 'AUTO ▢');
+    if(this.towerSecret){ b.textContent='ひみつ ★'; b.classList.add('on'); }
   },
   closeBattleSub(){ this.cmdCtx=''; document.getElementById('bSub').style.display='none'; },
   // あいゲージを加算（姫が仲間にいるときだけ）。満タン100で頭打ち
@@ -3540,6 +3604,15 @@ const game = {
     // レベルアッパー：売りつけ行動（1回のみ。断ったか買ったら以降は普通に攻撃）
     if(enemy.sell && !enemy._offered){
       enemy._offered=true;
+      // ひみつモード中はゴールドがあれば自動購入
+      if(this.towerSecret && this.p.gold>=10000){
+        this.p.gold-=10000;
+        this.p.lv+=1; this.p.maxHp+=8; this.p.maxMp+=4; this.p.baseAtk+=1; this.p.baseDef+=1;
+        this.p.hp=this.p.maxHp; this.p.mp=this.p.maxMp;
+        const la=LEARN[this.p.lv]; if(la&&!this.p.spells.includes(la)) this.p.spells.push(la);
+        audio.se('levelup'); this.updateStrip();
+        this.message([`レベルアッパー「まいど！」　Lv${this.p.lv}に あがった！`],()=>this.cont()); return;
+      }
       audio.se('select');
       this.message([
         'レベルアッパー「よう ゆうしゃさん！いい モノを うって やろうか！」',
@@ -3554,8 +3627,7 @@ const game = {
               this.message(['レベルアッパー「おっと おかねが たりないぜ！はは！」'],()=>this.cont()); return;
             }
             this.p.gold-=10000;
-            const msgs=this.checkLevel(999); // 強制的に経験値を足してレベルアップさせる
-            // checkLevelを使わずに直接レベルアップ処理
+            // 直接レベルアップ処理
             this.p.lv+=1;
             this.p.maxHp+=8; this.p.maxMp+=4; this.p.baseAtk+=1; this.p.baseDef+=1;
             this.p.hp=this.p.maxHp; this.p.mp=this.p.maxMp;
@@ -3827,6 +3899,8 @@ const game = {
     }); },
   endBattle(){ this.enemies=null; this.allies=null; this.cmdCtx=''; audio.bgm(this.bgmFor());
     document.getElementById('battle').classList.remove('show'); this.enterField();
+    // ひみつモード中：塔の階段チェックを自動実行
+    if(this.towerSecret) setTimeout(()=>this._towerSecretTick(), 400);
   },
   ending(){ audio.stopBgm(); audio.se('win');
     document.getElementById('battle').classList.remove('show'); this.mode='message';
