@@ -233,7 +233,7 @@
   #bLove.full .lv-bar i{animation:lovePulse .5s steps(1) infinite;}
   @keyframes lovePulse{50%{filter:brightness(1.7);}}
   #bAuto.on{border-color:var(--gold);color:var(--gold);box-shadow:0 0 6px rgba(245,215,94,.5);}
-  #bMsg{position:absolute;left:8px;right:8px;bottom:118px;z-index:5;min-height:60px;}
+  #bMsg{position:absolute;left:8px;right:8px;bottom:8px;z-index:5;min-height:60px;}
   #bCmd{position:absolute;left:8px;bottom:8px;width:150px;z-index:5;}
   #bSub{position:absolute;right:8px;bottom:8px;left:166px;z-index:5;max-height:200px;overflow-y:auto;}
 
@@ -899,7 +899,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='4.1';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='4.2';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1486,12 +1486,12 @@ const game = {
   },
 
   enterField(){ this.mode='field';
-    setTimeout(()=>this.refreshModeLabel(),50);
     document.getElementById('strip').classList.add('show');
     document.getElementById('pad').classList.add('show');
     document.getElementById('battle').classList.remove('show');
     document.getElementById('shop').classList.remove('show');
     this.draw(); this.updateStrip(); this.setPlace();
+    this.refreshModeLabel();
   },
 
   bindControls(){
@@ -3163,7 +3163,7 @@ const game = {
   },
   refreshModeLabel(){
     const el=document.getElementById('modeLabel'); if(!el) return;
-    const p=this.p;
+    const p=this.p; if(!p) return;
     if(this.mode==='battle'){
       if(this.isAbyssBattle)      el.textContent='💀 裏ボス戦';
       else if(this.isBossBattle)  el.textContent='👹 ボス戦';
@@ -4201,6 +4201,7 @@ const game = {
   /* ===================== ドット絵 描画 ===================== */
   draw(){
     if(this.mode==='title') return;
+    if(!this.ctx||!this.tile){ console.warn('draw: ctx or tile missing', {ctx:!!this.ctx, tile:this.tile}); return; }
     const ctx=this.ctx,t=this.tile,m=this.curMap(),half=Math.floor(VIEW/2);
     const camX=this.p.x-half, camY=this.p.y-half;
     ctx.clearRect(0,0,t*VIEW,t*VIEW);
