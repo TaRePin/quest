@@ -222,7 +222,10 @@
   .p-unit.p-novital .pn-role{color:#f0b8de;font-size:10px;margin-top:2px;}
   .love-badge{color:#ff8ad0;font-size:10px;font-weight:bold;animation:bl 1s steps(1) infinite;}
   .p-unit .hbar{margin-top:2px;}
-  #bAuto{position:absolute;right:8px;top:8px;z-index:7;font-size:12px;padding:5px 10px;border:2px solid #888;border-radius:5px;background:#000;cursor:pointer;letter-spacing:.08em;}
+  #bAuto{font-size:12px;padding:5px 10px;border:2px solid #888;border-radius:5px;background:#000;cursor:pointer;letter-spacing:.08em;white-space:nowrap;}
+  #modeBar{position:absolute;right:8px;top:8px;z-index:30;display:flex;flex-direction:column;align-items:flex-end;gap:4px;pointer-events:none;}
+  #modeBar #bAuto{pointer-events:auto;}
+  #modeLabel{font-size:11px;color:#9fc0ff;letter-spacing:.08em;background:rgba(0,0,16,.6);padding:2px 7px;border-radius:4px;border:1px solid #2a3a5a;}
   #bLove{position:absolute;right:8px;top:42px;z-index:7;display:flex;align-items:center;gap:4px;
     background:rgba(0,0,0,.55);padding:3px 6px;border-radius:5px;}
   #bLove .lv-label{font-size:10px;color:#ff9ad0;letter-spacing:.05em;}
@@ -312,11 +315,15 @@
       <div id="bFlash"></div>
     </div>
     <div id="bParty"></div>
-    <div id="bAuto">AUTO ▢</div>
     <div id="bLove"><span class="lv-label" id="bLoveLabel">💗あい</span><div class="lv-bar"><i id="bLoveFill"></i></div></div>
     <div id="bMsg" class="win"><div id="bMsgText"></div><div id="bMsgInd" class="msg-ind"></div></div>
     <div id="bCmd" class="win"></div>
     <div id="bSub" class="win"></div>
+  </div>
+
+  <div id="modeBar">
+    <span id="modeLabel">🗺 フィールド</span>
+    <div id="bAuto">AUTO ▢</div>
   </div>
 
   <div id="shop">
@@ -896,7 +903,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='3.7';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='3.9';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1477,6 +1484,7 @@ const game = {
   },
 
   enterField(){ this.mode='field';
+    setTimeout(()=>this.refreshModeLabel(),50);
     document.getElementById('strip').classList.add('show');
     document.getElementById('pad').classList.add('show');
     document.getElementById('battle').classList.remove('show');
@@ -2971,6 +2979,7 @@ const game = {
     this.isAbyssBattle = this.enemies.some(e=>e.key==='abyss');
     audio.se('encounter');
     audio.bgm(this.isAbyssBattle ? 'abyss1' : (this.isBossBattle?'boss':'battle')); this.mode='battle';
+    this.refreshModeLabel();
     document.getElementById('strip').classList.remove('show');
     document.getElementById('pad').classList.remove('show');
     this.closeCmd();
@@ -3066,22 +3075,14 @@ const game = {
       this.closeBattleSub(); this.autoChoose();
     }
   },
-  refreshAutoBtn(){
-    const b=document.getElementById('bAuto'); if(!b) return;
-    b.classList.toggle('on',!!this.auto);
-    b.textContent = this.autoMode===2 ? 'いのち ▣' : (this.autoMode===1 ? 'AUTO ▣' : 'AUTO ▢');
-    if(this.towerSecret){ b.textContent='ひみつ ★'; b.classList.add('on'); }
-  },
   // ひみつモード：無限の塔でひたすら自動登り（戦闘オート＋階段自動進行）
   toggleTowerSecret(){
     this.towerSecret=!this.towerSecret;
     audio.se('levelup');
-    const b=document.getElementById('bAuto'); if(!b) return;
     if(this.towerSecret){
       this.auto=true; this.autoMode=1; this.autoCare=true;
-      b.textContent='ひみつ ★'; b.classList.add('on');
+      this.refreshAutoBtn();
       this.toast('【ひみつモード】むげんの とうを のぼりつづける');
-      // 塔にいなければ塔に誘導するだけ
       if(this.p.map==='tower') this._towerSecretTick();
     } else {
       this.towerSecret=false; this.autoMode=0; this.auto=false; this.autoCare=false;
@@ -3089,7 +3090,7 @@ const game = {
       this.toast('ひみつモード OFF');
     }
   },
-  // ひみつモードの自動進行ティック（フィールドモード時）
+  // ひみつモードの自動進行ティック（BFS経路探索で壁を避けて階段へ移動）
   _towerSecretTick(){
     if(!this.towerSecret || this.p.map!=='tower' || this.mode!=='field') return;
     // HPが低ければ回復アイテムを自動使用
@@ -3104,30 +3105,59 @@ const game = {
     if(m.rows[this.p.y]&&m.rows[this.p.y][this.p.x]==='>'){
       setTimeout(()=>{ if(this.towerSecret&&this.mode==='field') this.towerNextFloor(); }, 400); return;
     }
-    // 階段タイルを探してひとマス近づく
-    let stx=-1,sty=-1;
-    outer: for(let y=0;y<m.rows.length;y++) for(let x=0;x<(m.rows[y]||'').length;x++)
-      if(m.rows[y][x]==='>'){stx=x;sty=y;break outer;}
-    if(stx<0){ return; }
-    const dirs=['up','down','left','right'];
-    const dxdy={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
-    // 現在地から階段へ向かう方向を選ぶ
-    const best=dirs.sort((a,b)=>{
-      const [ax,ay]=dxdy[a],[bx,by]=dxdy[b];
-      const da=Math.abs(this.p.x+ax-stx)+Math.abs(this.p.y+ay-sty);
-      const db=Math.abs(this.p.x+bx-stx)+Math.abs(this.p.y+by-sty);
-      return da-db;
-    })[0];
-    setTimeout(()=>{ if(this.towerSecret&&this.mode==='field'){
-      this.tryMove(best);
-      setTimeout(()=>this._towerSecretTick(),320);
-    }},200);
+    // BFSで階段タイルへの最短経路を探す
+    const DIRS={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+    const rows=m.rows, H=rows.length, W=rows[0].length;
+    const canStep=(x,y)=>{
+      if(y<0||y>=H||x<0||x>=W) return false;
+      const t=rows[y][x];
+      return !SOLID.has(t) && t!=='~';  // 壁・木・山・水以外は通れる
+    };
+    // BFS
+    const visited=new Set(); const queue=[[this.p.x, this.p.y, []]];
+    visited.add(this.p.x+','+this.p.y);
+    let firstDir=null;
+    bfsLoop: while(queue.length){
+      const [cx,cy,path]=queue.shift();
+      for(const [dir,[dx,dy]] of Object.entries(DIRS)){
+        const nx=cx+dx, ny=cy+dy;
+        const key=nx+','+ny;
+        if(visited.has(key)||!canStep(nx,ny)) continue;
+        visited.add(key);
+        const newPath=[...path,dir];
+        if(rows[ny][nx]==='>'){firstDir=newPath[0]; break bfsLoop;}
+        queue.push([nx,ny,newPath]);
+      }
+    }
+    if(!firstDir){ // 階段が見つからない（迷子）→少し待ってリトライ
+      setTimeout(()=>this._towerSecretTick(), 800); return;
+    }
+    // 1ステップ移動して次のティックへ
+    setTimeout(()=>{
+      if(!this.towerSecret||this.mode!=='field') return;
+      this.tryMove(firstDir);
+      setTimeout(()=>this._towerSecretTick(), 280);
+    }, 180);
   },
   refreshAutoBtn(){
     const b=document.getElementById('bAuto'); if(!b) return;
     b.classList.toggle('on',!!this.auto);
-    b.textContent = this.autoMode===2 ? 'いのち ▣' : (this.autoMode===1 ? 'AUTO ▣' : 'AUTO ▢');
-    if(this.towerSecret){ b.textContent='ひみつ ★'; b.classList.add('on'); }
+    if(this.towerSecret){
+      b.textContent='ひみつ ★'; b.classList.add('on');
+    } else {
+      b.textContent = this.autoMode===2 ? 'いのち ▣' : (this.autoMode===1 ? 'AUTO ▣' : 'AUTO ▢');
+    }
+    this.refreshModeLabel();
+  },
+  refreshModeLabel(){
+    const el=document.getElementById('modeLabel'); if(!el) return;
+    if(this.mode==='battle'){
+      if(this.isAbyssBattle)      el.textContent='💀 裏ボス戦';
+      else if(this.isBossBattle)  el.textContent='👹 ボス戦';
+      else                        el.textContent='⚔ 戦闘モード';
+    } else if(this.towerSecret){  el.textContent='🏰 ひみつモード'; }
+    else if(this.p&&this.p.map==='tower') el.textContent='🏰 むげんの とう';
+    else                          el.textContent='🗺 フィールド';
   },
   closeBattleSub(){ this.cmdCtx=''; document.getElementById('bSub').style.display='none'; },
   // あいゲージを加算（姫が仲間にいるときだけ）。満タン100で頭打ち
