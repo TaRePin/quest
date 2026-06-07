@@ -222,10 +222,12 @@
   .p-unit.p-novital .pn-role{color:#f0b8de;font-size:10px;margin-top:2px;}
   .love-badge{color:#ff8ad0;font-size:10px;font-weight:bold;animation:bl 1s steps(1) infinite;}
   .p-unit .hbar{margin-top:2px;}
-  #bAuto{font-size:12px;padding:5px 10px;border:2px solid #888;border-radius:5px;background:#000;cursor:pointer;letter-spacing:.08em;white-space:nowrap;}
+  #bAutoWrap{position:absolute;right:8px;top:8px;z-index:8;}
+  #bAutoB{font-size:12px;padding:5px 10px;border:2px solid #888;border-radius:5px;background:#000;cursor:pointer;letter-spacing:.08em;white-space:nowrap;color:#fff;}
+  #bAutoB.on{border-color:var(--gold);color:var(--gold);box-shadow:0 0 6px rgba(245,215,94,.5);}
   #modeBar{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:6px;}
   #modeLabel{font-size:10px;color:#9fc0ff;letter-spacing:.06em;background:rgba(0,0,16,.7);padding:2px 6px;border-radius:4px;border:1px solid #2a3a5a;white-space:nowrap;}
-  #bLove{position:absolute;right:8px;top:42px;z-index:7;display:flex;align-items:center;gap:4px;
+  #bLove{position:absolute;right:8px;top:48px;z-index:7;display:flex;align-items:center;gap:4px;
     background:rgba(0,0,0,.55);padding:3px 6px;border-radius:5px;}
   #bLove .lv-label{font-size:10px;color:#ff9ad0;letter-spacing:.05em;}
   #bLove .lv-bar{width:70px;height:7px;border:1px solid #d86db0;border-radius:4px;background:#2a1020;overflow:hidden;}
@@ -250,6 +252,10 @@
   @keyframes spark{0%{opacity:0;transform:translateY(0) scale(.4);}40%{opacity:1;}100%{opacity:0;transform:translateY(-40px) scale(1);}}
   #bFlash{position:absolute;inset:0;background:#fff;opacity:0;z-index:4;pointer-events:none;}
   #bFlash.on{animation:bf .18s;}
+  #poisonFlash{position:fixed;inset:0;background:rgba(180,0,180,.35);opacity:0;z-index:999;pointer-events:none;}
+  #poisonFlash.on{animation:pf .4s;}
+  @keyframes pf{0%{opacity:.7}100%{opacity:0}}
+  .hp-bar-poison i{background:linear-gradient(90deg,#a000c0,#d060ff) !important;}
   @keyframes bf{0%{opacity:.5;}100%{opacity:0;}}
   #bShake.shake{animation:bshake .35s;}
   @keyframes bshake{0%,100%{transform:translate(0,0);}20%{transform:translate(-6px,3px);}60%{transform:translate(5px,-2px);}}
@@ -279,6 +285,7 @@
 </style>
 
 <div id="app">
+<div id="poisonFlash"></div>
   <div id="strip">
     <div class="strip-top">
       <span class="s-cell">◈<b id="sGold">0</b></span>
@@ -319,6 +326,7 @@
     </div>
     <div id="bParty"></div>
     <div id="bLove"><span class="lv-label" id="bLoveLabel">💗あい</span><div class="lv-bar"><i id="bLoveFill"></i></div></div>
+    <div id="bAutoWrap"><div id="bAutoB">AUTO ▢</div></div>
     <div id="bMsg" class="win"><div id="bMsgText"></div><div id="bMsgInd" class="msg-ind"></div></div>
     <div id="bCmd" class="win"></div>
     <div id="bSub" class="win"></div>
@@ -901,7 +909,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='4.5';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='4.6';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -964,7 +972,14 @@ function generateTower(floor){
       const rare = floor>=10?'dragon':(floor>=5?'iron':'steel');
       chests[cx+','+cy]={gear:rare}; }
   }
-  return { rows:g.map(r=>r.join('')), entrance, stair, indoor:true, floor, chests, opened:{} };
+  // 回復の泉を配置（30%の確率で1つ）
+  let spring=null;
+  if(Math.random()<0.3 && spots.length){
+    const idx=Math.floor(Math.random()*spots.length);
+    const [sx,sy]=spots.splice(idx,1)[0];
+    g[sy][sx]='F'; spring={x:sx,y:sy};
+  }
+  return { rows:g.map(r=>r.join('')), entrance, stair, indoor:true, floor, chests, opened:{}, spring };
 }
 
 /* ---- サウンド（Web Audio 合成）---- */
@@ -1483,6 +1498,37 @@ const game = {
     if(m==='tower') return `むげんの とう ${this.p.towerFloor||1}かい`;
     return MAP_NAMES[m]||'';
   },
+  // フィールド毒ダメージ（ドラクエ風）
+  fieldPoisonStep(){
+    const p=this.p;
+    if(p.status!=='poison') return;
+    p._poisonSteps=(p._poisonSteps||0)+1;
+    // 2歩ごとにダメージ
+    if(p._poisonSteps%2===0){
+      const dmg=Math.max(1,Math.floor(p.maxHp*0.08));
+      p.hp=Math.max(0,p.hp-dmg);
+      // 紫フラッシュ演出
+      const pf=document.getElementById('poisonFlash');
+      if(pf){ pf.classList.remove('on'); void pf.offsetWidth; pf.classList.add('on'); }
+      this.updateStrip();
+      if(p.hp<=0){
+        p.hp=0;
+        this.message(['どくで たおれてしまった…','ゆうしゃは ちからつきた。'],()=>{
+          // タイトルへ戻す（ゲームオーバー）
+          audio.stopBgm(); audio.se('damage');
+          this.save();
+          location.reload();
+        }); return;
+      }
+    }
+    // 自然消滅（2〜6歩でランダムに消える）
+    if(!p._poisonTTL) p._poisonTTL=this.randi(4,12); // 2歩単位なので4〜12ステップ
+    if(p._poisonSteps>=p._poisonTTL){
+      p.status=''; p._poisonSteps=0; p._poisonTTL=0;
+      this.updateStrip();
+      this.message(['どくが きれた！']);
+    }
+  },
   setPlace(){ const el=document.getElementById('placeName');
     if(el) el.textContent=this.placeNameOf();
   },
@@ -1590,6 +1636,8 @@ const game = {
     },{passive:false}); }
     this.tap(document.getElementById('bAuto'),()=>this.toggleAuto());
     this.hold(document.getElementById('bAuto'),2000,()=>this.toggleTowerSecret());
+    this.tap(document.getElementById('bAutoB'),()=>this.toggleAuto());
+    this.hold(document.getElementById('bAutoB'),2000,()=>this.toggleTowerSecret());
     window.addEventListener('keydown',e=>{
       const k={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'}[e.key];
       if(k){ e.preventDefault(); this.tryMove(k); }
@@ -1619,9 +1667,24 @@ const game = {
     p.x=nx; p.y=ny; this.frame^=1; this.draw();
     // 歩くたび あいゲージが少しずつ たまる（ランダム）
     this.addLove(this.randi(0,2));
+    // 毒歩行ダメージ（ドラクエ風：2歩に1回ダメージ）
+    if(p.status==='poison') this.fieldPoisonStep();
     // 塔の宝箱→踏んだら開ける（素通りもできる。取得後はただの床）
     if(p.map==='tower' && t==='C' && !(this.tower.opened&&this.tower.opened[nx+','+ny])){
       this.openTowerChest(nx,ny); return;
+    }
+    // 塔の回復の泉→踏んだら全回復（使い捨て）
+    if(p.map==='tower' && t==='F'){
+      const already=this.tower.springUsed;
+      if(!already){
+        this.tower.springUsed=true;
+        p.hp=p.maxHp; p.mp=p.maxMp; p.status=''; p._poisonSteps=0; p._poisonTTL=0;
+        // 仲間も全回復
+        p.party.forEach(k=>{ const st=p.allyState[k]; if(st){st.hp=st.maxHp; st.mp=st.maxMp; st.status='';} });
+        audio.se('heal'); this.updateStrip();
+        this.message(['かいふくの いずみに たどりついた！','HP・MPが すべて かいふく した！','どくなどの じょうたいいじょうも かいふく！']);
+        return;
+      }
     }
     // 通常マップの宝箱→踏んだら開ける（封印箱は除く＝開かないが素通りはできる）
     const stepChest=CHESTS.find(c=>c.map===p.map&&c.x===nx&&c.y===ny);
@@ -2443,6 +2506,7 @@ const game = {
     const next=p.towerFloor+1;
     // 20階: エルフ国の門（クエスト受諾済みなら毎回出現）
     if(p.towerFloor===20 && p.flags.elfQuest){
+      if(this.towerSecret){ this.enterTower(next); return; }
       this.message([
         '20かいの おくに、ふしぎな ひかりの もんが うかんでいる。',
         'これが いせかいへの もん…エルフの くにへ つうじている。',
@@ -2458,6 +2522,7 @@ const game = {
       return;
     }
     if(p.towerFloor%5===0){
+      if(this.towerSecret){ this.enterTower(next); return; }
       this.message([`${p.towerFloor}かいを とうは した！`,'さらに のぼりますか？'],()=>{
         this.cmdCtx='field';
         this.cmdItems=[
@@ -2989,6 +3054,7 @@ const game = {
   startBattle(arg){
     // とくぎ効果を初期化（前の戦闘の持ち越し防止）
     this.guardAllTurns=0; this.provokeTurns=0; this.provokeTarget=null; this.loveTurns=0; this.lovePeak=false; this._decoyUsed=false;
+    this.p._poisonSteps=0; // 毒歩行カウントをリセット
     // arg: 敵キー1つ(ボス) または 敵キー配列(グループ)
     let keys = Array.isArray(arg)?arg:[arg];
     let f=this.p.map==='cave2'?1.15:(this.p.map==='cave1'?1.05:1);
@@ -3135,44 +3201,46 @@ const game = {
         this.p.items[hi]--; this.p.hp=Math.min(this.p.maxHp,this.p.hp+(it.amt||50)); this.updateStrip(); }
     }
     const m=this.curMap(); if(!m) return;
-    // 足元が階段なら即昇る
-    if(m.rows[this.p.y]&&m.rows[this.p.y][this.p.x]==='>'){
-      setTimeout(()=>{ if(this.towerSecret&&this.mode==='field') this.towerNextFloor(); }, 400); return;
-    }
-    // BFSで「未開封宝箱C」または「階段>」への最短経路を探す
-    // 未開封宝箱を優先（あれば先に回収）
-    const DIRS={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
     const rows=m.rows, H=rows.length, W=(rows[0]||'').length;
     const opened=this.tower&&this.tower.opened||{};
-    const isGoal=(x,y)=>{
-      const t=rows[y]&&rows[y][x];
-      if(t==='>') return 'stair';
-      if(t==='C' && !opened[x+','+y]) return 'chest';
-      return null;
-    };
+    // 未開封宝箱が残っているか確認
+    let hasChest=false;
+    for(let y=0;y<H&&!hasChest;y++) for(let x=0;x<W&&!hasChest;x++)
+      if(rows[y]&&rows[y][x]==='C'&&!opened[x+','+y]) hasChest=true;
+    // 足元が階段かつ宝箱なし→即昇る
+    if(!hasChest && m.rows[this.p.y]&&m.rows[this.p.y][this.p.x]==='>'){
+      setTimeout(()=>{ if(this.towerSecret&&this.mode==='field') this.towerNextFloor(); }, 400); return;
+    }
+    // BFS：宝箱があれば宝箱優先、なければ階段へ
+    const DIRS={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
     const canStep=(x,y)=>{
       if(y<0||y>=H||x<0||x>=W) return false;
       const t=rows[y][x];
       return !SOLID.has(t) && t!=='~';
     };
-    // BFS実行
     const visited=new Set(); const queue=[[this.p.x,this.p.y,[]]];
     visited.add(this.p.x+','+this.p.y);
-    let firstDirChest=null, firstDirStair=null;
+    let firstDir=null;
     bfsLoop: while(queue.length){
       const [cx,cy,path]=queue.shift();
       for(const [dir,[dx,dy]] of Object.entries(DIRS)){
         const nx=cx+dx, ny=cy+dy, key=nx+','+ny;
         if(visited.has(key)) continue;
-        const goal=isGoal(nx,ny);
-        if(goal==='chest' && !firstDirChest){ firstDirChest=path.length?path[0]:dir; }
-        if(goal==='stair' && !firstDirStair){ firstDirStair=path.length?path[0]:dir; }
-        if(firstDirChest&&firstDirStair) break bfsLoop;
+        const t=rows[ny]&&rows[ny][nx];
+        if(hasChest){
+          // 宝箱モード：未開封Cを最初に見つけた方向へ
+          if(t==='C' && !opened[nx+','+ny]){
+            firstDir=path.length?path[0]:dir; break bfsLoop;
+          }
+        } else {
+          // 階段モード：>を最初に見つけた方向へ
+          if(t==='>'){
+            firstDir=path.length?path[0]:dir; break bfsLoop;
+          }
+        }
         if(canStep(nx,ny)){ visited.add(key); queue.push([nx,ny,[...path,dir]]); }
       }
     }
-    // 未開封宝箱があれば優先、なければ階段へ
-    const firstDir = firstDirChest || firstDirStair;
     if(!firstDir){ setTimeout(()=>this._towerSecretTick(), 800); return; }
     setTimeout(()=>{
       if(!this.towerSecret||this.mode!=='field') return;
@@ -3181,13 +3249,12 @@ const game = {
     }, 180);
   },
   refreshAutoBtn(){
-    const b=document.getElementById('bAuto'); if(!b) return;
-    b.classList.toggle('on',!!this.auto);
-    if(this.towerSecret){
-      b.textContent='ひみつ ★'; b.classList.add('on');
-    } else {
-      b.textContent = this.autoMode===2 ? 'いのち ▣' : (this.autoMode===1 ? 'AUTO ▣' : 'AUTO ▢');
-    }
+    const sync=(id)=>{ const b=document.getElementById(id); if(!b) return;
+      b.classList.toggle('on',!!this.auto);
+      if(this.towerSecret){ b.textContent='ひみつ ★'; b.classList.add('on'); }
+      else { b.textContent = this.autoMode===2 ? 'いのち ▣' : (this.autoMode===1 ? 'AUTO ▣' : 'AUTO ▢'); }
+    };
+    sync('bAuto'); sync('bAutoB');
     this.refreshModeLabel();
   },
   refreshModeLabel(){
@@ -3261,6 +3328,14 @@ const game = {
       lines.push('ぶきの とくしゅこうかが はんてんし、はつどう しやすく なった！');
     }
     hero.hp=hero.maxHp; this.loveTurns=turns;
+    // あいのうたの追加効果：全味方の状態異常を回復
+    const cured=[];
+    this.allies.forEach(a=>{
+      if(a.alive && a.status && !a.noVitals){ cured.push(a.name); a.status=''; }
+    });
+    // フィールドの勇者の毒も解除
+    if(this.p.status){ this.p.status=''; this.p._poisonSteps=0; this.p._poisonTTL=0; cured.push('ゆうしゃ（フィールド）'); }
+    if(cured.length) lines.push(`じょうたいいじょうが かいふく した！（${cured.join('、')}）`);
     audio.se('levelup'); this.fxHeal(); this.fxFuryOn&&this.fxFuryOn(); this.renderParty(); this.renderLoveGauge();
     this.message(lines,()=>{ if(done)done(); });
   },
@@ -4308,8 +4383,14 @@ const game = {
       dot('#5a4030',[[1,1,2,1],[2,0,4,1],[5,1,2,1],[1,2,6,2]]); // 枯れ枝
       dot('#3a2818',[[2,2],[5,2],[3,3],[4,1]]);
     }
+    else if(ch==='F'){ // 回復の泉
+      const used=this.tower&&this.tower.springUsed;
+      ctx.fillStyle=used?'#3a2f28':'#1a5f9f'; ctx.fillRect(px,py,t,t);
+      if(!used){ dot('#2a8fcf',[[1,2,6,1],[0,3,8,2],[1,5,6,1]]);
+        dot('#5abfef',[[2,3],[5,3],[3,4]]); dot('#7fdfff',[[3,3]]); }
+      else { dot('#2e251f',[[1,1],[5,2],[3,5]]); }
+    }
     else if(ch==='S'){ // 海の上の船
-      ctx.fillStyle='#2f6fc4'; ctx.fillRect(px,py,t,t);          // 水
       dot('#5a92e0',[[1,1],[6,2],[2,6],[7,5]]);                  // 波
       dot('#6b4a2a',[[1,5,6,2]]);                                 // 船体
       dot('#4a3018',[[1,6,6,1]]);
@@ -4415,8 +4496,10 @@ const game = {
           +`<div class="hbar lovebar"><i style="width:${Math.min(100,g/3)}%"></i></div></div>`;
       }
       const hpPct=Math.max(0,u.hp)/u.maxHp*100, mpPct=u.maxMp?u.mp/u.maxMp*100:0;
+      const isPoisoned=(u.name==='ゆうしゃ' && p.status==='poison');
+      const hpBarStyle=isPoisoned?'background:linear-gradient(90deg,#a000c0,#d060ff)':'';
       const mpLine=u.maxMp>0?`<div><span class="ps-mp">MP</span> ${u.mp}/${u.maxMp}</div><div class="hbar mp"><i style="width:${mpPct}%"></i></div>`:'';
-      return `<div class="ps-unit${u.hp<=0?' downed':''}"><div class="ps-name">${u.name} <span class="ps-lv">Lv${u.lv}</span></div><div><span class="ps-hp">HP</span> ${Math.max(0,u.hp)}/${u.maxHp}</div><div class="hbar hp"><i style="width:${hpPct}%"></i></div>${mpLine}</div>`;
+      return `<div class="ps-unit${u.hp<=0?' downed':''}"><div class="ps-name">${u.name} <span class="ps-lv">Lv${u.lv}</span></div><div><span class="ps-hp">HP</span> ${Math.max(0,u.hp)}/${u.maxHp}${isPoisoned?' 🟣':''}</div><div class="hbar hp"><i style="width:${hpPct}%;${hpBarStyle}"></i></div>${mpLine}</div>`;
     }).join('');
     // 姫の枠をタップ/クリックで しきい値(100/200/300)を切替
     const pp=document.getElementById('psPrincess');
