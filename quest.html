@@ -309,6 +309,8 @@
       </div>
     </div>
   </div>
+
+  <div id="battle">
     <div id="bShake" class="b-stage">
       <div class="b-far"></div>
       <div class="b-grid"></div>
@@ -899,7 +901,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='4.2';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='4.5';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1490,8 +1492,26 @@ const game = {
     document.getElementById('pad').classList.add('show');
     document.getElementById('battle').classList.remove('show');
     document.getElementById('shop').classList.remove('show');
-    this.draw(); this.updateStrip(); this.setPlace();
-    this.refreshModeLabel();
+    this._resizeCanvas();
+    // 1フレーム待って確実にレイアウトが確定してから描画
+    requestAnimationFrame(()=>{
+      this._resizeCanvas();
+      this.draw(); this.updateStrip(); this.setPlace();
+      this.refreshModeLabel();
+    });
+  },
+  _resizeCanvas(){
+    const c=document.getElementById('view'); if(!c) return;
+    const stage=document.getElementById('stage');
+    const w=stage ? stage.clientWidth : (document.getElementById('app').clientWidth||360);
+    if(w>0){
+      const newTile=Math.floor(Math.min(VIEW*34, w)/VIEW);
+      if(newTile>0 && newTile!==this.tile){
+        this.tile=newTile; c.width=newTile*VIEW; c.height=newTile*VIEW;
+      }
+    }
+    // ctxが未設定なら取得
+    if(!this.ctx) this.ctx=c.getContext('2d');
   },
 
   bindControls(){
@@ -1559,6 +1579,15 @@ const game = {
     });
     this.tap(document.getElementById('msgBox'),()=>this.advanceMsg());
     this.tap(document.getElementById('bMsg'),()=>this.advanceMsg());
+    // 戦闘画面タップ：メッセージ表示中のみadvanceMsg（コマンド表示中は横取りしない）
+    const battleEl=document.getElementById('battle');
+    if(battleEl){ battleEl.addEventListener('touchend',e=>{
+      if(this.msgQueue.length||this._typing){
+        // コマンドやsubが表示中はスルー（それらの上のタップはそちらに任せる）
+        if(this.cmdCtx==='battle') return;
+        if(e.cancelable) e.preventDefault(); this.advanceMsg();
+      }
+    },{passive:false}); }
     this.tap(document.getElementById('bAuto'),()=>this.toggleAuto());
     this.hold(document.getElementById('bAuto'),2000,()=>this.toggleTowerSecret());
     window.addEventListener('keydown',e=>{
