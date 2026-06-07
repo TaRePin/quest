@@ -711,24 +711,16 @@ const ENEMIES = {
 const ENC_GROUPS = {
   world:[
     ['slime'], ['slime','slime'], ['ghost'], ['slime','ghost'],
-    ['wolf'], ['bat','bat'], ['ghost','slime'], ['mage'],
-    ['lvupper'],
-  ],
+    ['wolf'], ['bat','bat'], ['ghost','slime'], ['mage'],  ],
   cave1:[
     ['ghost','ghost'], ['wolf'], ['bat','bat'], ['wolf','ghost'],
-    ['mage'], ['golem'], ['mage','bat'], ['wolf','wolf'],
-    ['lvupper'],
-  ],
+    ['mage'], ['golem'], ['mage','bat'], ['wolf','wolf'],  ],
   cave2:[
     ['golem'], ['reaper'], ['mage','golem'], ['golem','golem'],
-    ['reaper','mage'], ['golem','reaper'],
-    ['lvupper'],
-  ],
+    ['reaper','mage'], ['golem','reaper'],  ],
   elf:[
     ['rootworm'], ['shade'], ['rootworm','shade'], ['shade','shade'],
-    ['rootworm','rootworm'], ['treant'],
-    ['lvupper'],
-  ],
+    ['rootworm','rootworm'], ['treant'],  ],
   elfcave:[
     ['rootworm','shade'], ['treant'], ['shade','shade','rootworm'],
     ['treant','shade'], ['rootworm','treant'],
@@ -899,7 +891,8 @@ function freshPlayer(){
             elfReturnDoor:false, backFromElf:false, finalEnd:false,
             departed:false, princessJoined:false, metKud:false, gotShip:false,
             abyssCleared:false, abyssClears:0,
-            branchQuest:false, branchBattles:0, almaceDone:false },
+            branchQuest:false, branchBattles:0, almaceDone:false,
+            hasElevator:false },
     quests:{},                        // サブクエスト進捗 {questId:{state,count}}
     seen:[], chests:[],
     loveGauge:0,                      // あいゲージ(0-300)。しきい値に達すると戦闘中あいのうた自動発動
@@ -909,7 +902,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='4.6';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='4.7';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1714,8 +1707,8 @@ const game = {
     const w=WARPS.find(w=>w.map===p.map&&w.x===nx&&w.y===ny);
     if(w){
       if(t==='>') this.promptWarp(w);   // 階段だけ「すすむ/まだ」を聞く
-      else if(t==='O'){                 // 塔の入口：乗ったとき確認ダイアログ
-        this.enterTowerPrompt(); }
+      else if(t==='O'){                 // 塔の入口：乗ったら即入場
+        this.enterTowerFromWorld(); }
       else this.doWarp(w);              // 村・町・城・洞窟の出入りは乗ったら即入場
       return;
     }
@@ -1756,6 +1749,8 @@ const game = {
       if(this._bridgeTimer) return; // 計測中はエンカウントしない
     }
     const encMul = (p.equip.weapon==='branch') ? 1.3 : 1;   // クエスト2中はエンカウント1.3倍
+    // 低確率（5%）でレベルアッパーが出現（どこでも）
+    if(Math.random()<0.05){ this.startBattle(['lvupper']); return; }
     if(p.map==='world'||p.map==='cave1'||p.map==='cave2'){
       const rate = (p.map==='world'?0.10:0.15)*encMul;
       if(Math.random()<rate) this.startBattle(this.pick(ENC_GROUPS[p.map]));
@@ -1853,7 +1848,7 @@ const game = {
     // 塔の宝箱
     if(p.map==='tower' && m.rows[fy] && m.rows[fy][fx]==='C'){ this.openTowerChest(fx,fy); return; }
     // 塔の入口
-    if(p.map==='world' && m.rows[fy] && m.rows[fy][fx]==='O'){ this.enterTowerPrompt(); return; }
+    if(p.map==='world' && m.rows[fy] && m.rows[fy][fx]==='O'){ this.enterTowerFromWorld(); return; }
     const npc=this.visibleNpcs(p.map).find(n=>n.x===fx&&n.y===fy);
     if(npc){ this.talkTo(npc); return; }
     this.message(['だれも いない。']);
@@ -2471,21 +2466,38 @@ const game = {
       this.updateStrip();
     });
   },
-  enterTowerPrompt(){
-    const best=this.p.towerBest||0;
-    this.message([
-      'てんまで とどく ふしぎな とう。',
-      'ちゅうい：この とうに でぐちは ない。',
-      'だっしゅつ できるのは 5かいごと だけだ。',
-      best>0?`これまでの さいかい とうたつ：${best}かい`:'のぼった ものは いないという…',
-      'それでも はいりますか？'
-    ],()=>{
-      this.cmdCtx='field';
-      this.cmdItems=[
-        {label:'はい のぼる',act:()=>{ this.closeCmd(); this.enterTower(1); }},
-        {label:'いいえ やめる',act:()=>{ this.closeCmd(); this.message(['とうを あとに した。']); }},
-      ]; this.cmdSel=0; this.renderCmd('cmdBox');
-    });
+  // 塔の入口に乗った/決定したとき呼ばれる
+  enterTowerFromWorld(){
+    const p=this.p;
+    const best=p.towerBest||0;
+    // 40階以上到達済みならエレベーター権利付与（過去プレイ分も適用）
+    if(best>=40 && !p.flags.hasElevator) p.flags.hasElevator=true;
+    if(p.flags.hasElevator){
+      const floors=[];
+      for(let f=1;f<=best;f+=5) floors.push(f);
+      if(!floors.includes(best)) floors.push(best);
+      this.message([
+        'むげんの とうの まえに たつ。',
+        `エレベーターが つかえます。（さいかい とうたつ：${best}かい）`,
+        'なんかいから のぼりますか？',
+      ],()=>{
+        this.cmdCtx='field';
+        this.cmdItems=floors.map(f=>({
+          label:`${f}かいから のぼる`,
+          act:()=>{ this.closeCmd(); this.enterTower(f); }
+        }));
+        this.cmdItems.push({label:'やめる',act:()=>{ this.closeCmd(); }});
+        this.cmdSel=0; this.renderCmd('cmdBox');
+      });
+    } else {
+      this.message([
+        'むげんの とうの まえに たつ。',
+        'ちゅうい：この とうに でぐちは ない。',
+        'だっしゅつ できるのは 5かいごと だけだ。',
+        best>0?`これまでの さいかい とうたつ：${best}かい`:'のぼった ものは いないという…',
+        '40かいに たどりつくと エレベーターが かいほうされる！',
+      ],()=>{ this.enterTower(1); });
+    }
   },
   enterTower(floor){
     const p=this.p;
@@ -2503,6 +2515,11 @@ const game = {
   towerNextFloor(){
     const p=this.p;
     p.towerBest=Math.max(p.towerBest||0, p.towerFloor);
+    // 40階到達でエレベーター権利を付与（初回のみメッセージ）
+    if(p.towerFloor>=40 && !p.flags.hasElevator){
+      p.flags.hasElevator=true;
+      this.toast('🛗 エレベーターが かいほうされた！ 次から好きな階から入れます');
+    }
     const next=p.towerFloor+1;
     // 20階: エルフ国の門（クエスト受諾済みなら毎回出現）
     if(p.towerFloor===20 && p.flags.elfQuest){
@@ -2561,6 +2578,8 @@ const game = {
   },
   towerEncounter(){
     const f=this.p.towerFloor;
+    // 5%でレベルアッパーが出現（塔内は特に低確率）
+    if(Math.random()<0.05) return ['lvupper'];
     const pool = f<=3?['slime','ghost','bat'] : f<=7?['wolf','mage','bat','ghost'] : f<=12?['golem','mage','reaper','wolf'] : ['reaper','golem','reaper','mage'];
     const n = f<=3?1 : f<=8?(Math.random()<0.5?2:1) : (Math.random()<0.5?3:2);
     const group=[]; for(let i=0;i<n;i++) group.push(this.pick(pool));
@@ -3756,50 +3775,8 @@ const game = {
     // レベルアッパー：売りつけ行動（1回のみ。断ったか買ったら以降は普通に攻撃）
     if(enemy.sell && !enemy._offered){
       enemy._offered=true;
-      // ひみつモード中はゴールドがあれば自動購入
-      if(this.towerSecret && this.p.gold>=10000){
-        this.p.gold-=10000;
-        this.p.lv+=1; this.p.maxHp+=8; this.p.maxMp+=4; this.p.baseAtk+=1; this.p.baseDef+=1;
-        this.p.hp=this.p.maxHp; this.p.mp=this.p.maxMp;
-        const la=LEARN[this.p.lv]; if(la&&!this.p.spells.includes(la)) this.p.spells.push(la);
-        audio.se('levelup'); this.updateStrip();
-        this.message([`レベルアッパー「まいど！」　Lv${this.p.lv}に あがった！`],()=>this.cont()); return;
-      }
-      audio.se('select');
-      this.message([
-        'レベルアッパー「よう ゆうしゃさん！いい モノを うって やろうか！」',
-        'レベルアッパー「なんと いっきに 1レベルアップ！おねだんは たった 10000ゴールド！」',
-        'どうする？',
-      ],()=>{
-        this.cmdCtx='battle';
-        this.cmdItems=[
-          { label:'かう（10000G）', act:()=>{
-            this.closeCmd();
-            if(this.p.gold<10000){
-              this.message(['レベルアッパー「おっと おかねが たりないぜ！はは！」'],()=>this.cont()); return;
-            }
-            this.p.gold-=10000;
-            // 直接レベルアップ処理
-            this.p.lv+=1;
-            this.p.maxHp+=8; this.p.maxMp+=4; this.p.baseAtk+=1; this.p.baseDef+=1;
-            this.p.hp=this.p.maxHp; this.p.mp=this.p.maxMp;
-            const l=LEARN[this.p.lv]; if(l&&!this.p.spells.includes(l)) this.p.spells.push(l);
-            audio.se('levelup'); this.updateStrip();
-            const lines=[
-              'レベルアッパー「まいど！またきてね～！」',
-              `ゆうしゃは レベル ${this.p.lv} に あがった！`,
-              `さいだいHP+8 こうげき+1 まもり+1`,
-            ];
-            if(l) lines.push(`じゅもん「${SPELLS[l]?.name||l}」を おぼえた！`);
-            this.message(lines,()=>this.cont());
-          }},
-          { label:'いらない', act:()=>{
-            this.closeCmd();
-            this.message(['レベルアッパー「けちんぼめ！そうなら てきとして あつかうぜ！」'],()=>this.cont());
-          }},
-        ]; this.cmdSel=0; this.renderCmd('cmdBox');
-      });
-      return;
+      // 新仕様：戦闘後に強制レベルアップ（victory()で処理）→戦闘中は普通に攻撃
+      this.message(['レベルアッパー「フフ…やれるもんならやってみな！」'],()=>this.cont()); return;
     }
     // あぶないみずぎ装備中：低確率で敵を魅了し行動不能に
     const charmRate = GEAR[this.p.equip.armor] && GEAR[this.p.equip.armor].charm;
@@ -3931,6 +3908,25 @@ const game = {
     }
     audio.se('win'); this.syncAlliesBack();
     this.addLove(this.randi(30,55));   // 戦闘勝利：あいゲージが もっともたまる
+    // レベルアッパーを倒した場合：強制1レベルアップ（お金不要）
+    const beatLvUpper=this.enemies.some(e=>e.key==='lvupper');
+    if(beatLvUpper){
+      this.p.lv+=1;
+      this.p.maxHp+=8; this.p.maxMp+=4; this.p.baseAtk+=1; this.p.baseDef+=1;
+      this.p.hp=this.p.maxHp; this.p.mp=this.p.maxMp;
+      const ll=LEARN[this.p.lv]; if(ll&&!this.p.spells.includes(ll)) this.p.spells.push(ll);
+      audio.se('levelup'); this.updateStrip();
+      const lvLines=[
+        'レベルアッパー「フフフ…やるじゃないか。」',
+        'レベルアッパー「ま、まいったぜ…。しかたない、ちからを わけてやる。」',
+        'レベルアッパー「かんしゃ しなさい！これが わたしの さいごの しごとだ！」',
+        `ゆうしゃは レベル ${this.p.lv} に あがった！`,
+        `さいだいHP+8 こうげき+1 まもり+1`,
+      ];
+      if(ll) lvLines.push(`じゅもん「${SPELLS[ll]?.name||ll}」を おぼえた！`);
+      this.message(lvLines,()=>this.endBattle());
+      return;
+    }
     const totalXp=this.enemies.reduce((s,e)=>s+e.xp,0);
     const totalGold=this.enemies.reduce((s,e)=>s+e.gold,0);
     this.p.gold+=totalGold;
