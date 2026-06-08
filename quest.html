@@ -902,7 +902,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='4.9';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='5.0';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1762,8 +1762,9 @@ const game = {
       if(this._bridgeTimer) return; // 計測中はエンカウントしない
     }
     const encMul = (p.equip.weapon==='branch') ? 1.3 : 1;   // クエスト2中はエンカウント1.3倍
-    // 低確率（5%）でレベルアッパーが出現（どこでも）
-    if(Math.random()<0.05){ this.startBattle(['lvupper']); return; }
+    // バトルが発生するマップのみレベルアッパー判定（城・町・非戦闘エリアでは出ない）
+    const battleMap=['world','cave1','cave2','elf','elfcave','tower'];
+    if(battleMap.includes(p.map) && Math.random()<0.008){ this.startBattle(['lvupper']); return; }
     if(p.map==='world'||p.map==='cave1'||p.map==='cave2'){
       const rate = (p.map==='world'?0.10:0.15)*encMul;
       if(Math.random()<rate) this.startBattle(this.pick(ENC_GROUPS[p.map]));
@@ -2418,7 +2419,7 @@ const game = {
       this.message([
         'しんえんの おくに、ねむれる ふくりゅう 「アビス」が めを さました！',
         'アビス「…よくぞ ここまで きた、ちいさき ゆうしゃ よ。」',
-        'アビス「ブルトガングの ぬし、こだいの ちからの もちぬし、',
+        'アビス「でんせつの まけんの ぬし、こだいの ちからの もちぬし、',
         'そして あいを しる もの だけが、われに たどりつける。」',
         'アビス「みせて みよ。なんじの すべてを！」',
         'たたかいますか？'
@@ -2447,29 +2448,38 @@ const game = {
     const first = !p.flags.abyssCleared;
     p.flags.abyssCleared=true;
     p.flags.abyssClears=(p.flags.abyssClears||0)+1;
+    const clears=p.flags.abyssClears;
+    // 2回撃破で しんぴのよろい入手（アップデート前に2回以上倒していたら即入手）
+    const getsArmor = clears>=2 && !p.ownedGear.includes('mysticarmor');
     let lines;
     if(first){
-      // 初回のみ：しんぴのよろい入手＋ステータス報酬
+      // 1回目：ステータス報酬＋次回予告
       p.maxHp+=50; p.hp=p.maxHp; p.baseAtk+=10; p.baseDef+=10;
-      if(!p.ownedGear.includes('mysticarmor')) p.ownedGear.push('mysticarmor');
       lines=[
         'りゅうおう アビスは、しずかに ちからを うしなって いった──',
         'アビス「みごと だ…なんじこそ まことの えいゆう。」',
         'さいだいHPが 50 あがり、こうげき・ぼうぎょが 10 ずつ あがった！',
-        'たからばこから 「しんぴの よろい」を てに いれた！',
-        'しんぴの よろい：ぼうぎょ+150。HPが はんぶんを きると ぶんしんを よびだす。',
-        'アビス「だが…われは なんど でも よみがえる。さらに つよく なって な。」',
-        '── さいきょうの うらボス アビスを たおした！ ──',
+        'アビス「……だが これで おわりでは ない。」',
+        'アビス「もう いちど われを たおせるなら、しんの ちからを さずけよう。」',
+        'アビス「なんど でも よみがえる。さらに つよく なって な。」',
       ];
     } else {
-      // 再戦：撃破ごとに少しだけステータス報酬
+      // 2回目以降
       p.maxHp+=20; p.hp=p.maxHp; p.baseAtk+=5; p.baseDef+=5;
       lines=[
-        `さらに つよき アビス（＋${p.flags.abyssClears-1}）を うちやぶった！`,
-        'アビス「…みごと。だが つぎは もっと つよく なって もどる。」',
+        `さらに つよき アビス（${clears}かいめ）を うちやぶった！`,
+        'アビス「…みごと。なんじの つよさ、みとめよう。」',
         'さいだいHP+20、こうげき・ぼうぎょ+5！',
-        `これまでの げきは かいすう：${p.flags.abyssClears}かい`,
       ];
+      if(getsArmor){
+        p.ownedGear.push('mysticarmor');
+        lines.push('アビス「やくそく どおり、わが ちからの よろいを さずけよう。」');
+        lines.push('「しんぴの よろい」を てに いれた！');
+        lines.push('しんぴの よろい：ぼうぎょ+150。HPが はんぶんを きると ぶんしんを よびだす。');
+      } else if(p.ownedGear.includes('mysticarmor')){
+        lines.push('アビス「だが つぎは もっと つよく なって もどる。」');
+      }
+      lines.push(`これまでの げきはかいすう：${clears}かい`);
     }
     this.message(lines,()=>{
       p.map='world';
@@ -2593,7 +2603,7 @@ const game = {
   },
   towerEncounter(){
     const f=this.p.towerFloor;
-    if(Math.random()<0.05) return ['lvupper'];
+    if(Math.random()<0.02) return ['lvupper'];
     // 階層に応じた敵プールと出現数（高層ほど強敵・多数）
     let pool, n;
     if(f<=5){
