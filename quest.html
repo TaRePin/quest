@@ -689,7 +689,7 @@ const ENEMIES = {
   slime:  { name:'スライム',       art:'🟦', hp:7,  atk:6,  def:3,  spd:4,  xp:2,  gold:3  },
   ghost:  { name:'まよいびと',     art:'👻', hp:11, atk:9,  def:4,  spd:9,  xp:4,  gold:6  },
   wolf:   { name:'のら おおかみ',  art:'🐺', hp:17, atk:12, def:5,  spd:14, xp:7,  gold:10 },
-  lvupper:{ name:'レベルアッパー', art:'🧝', hp:15, atk:8,  def:2,  spd:6,  xp:0,  gold:0, sell:true },
+  lvupper:{ name:'レベルアッパー', art:'🧝', hp:1, atk:1, def:1, spd:6, xp:0, gold:0, sell:true, dynamic:true },
   bat:    { name:'ほら こうもり',  art:'🦇', hp:13, atk:11, def:3,  spd:18, xp:6,  gold:8, inflict:{status:'poison',rate:0.2} },
   mage:   { name:'やみの まどうし',art:'🧙', hp:16, atk:13, def:3,  spd:10, xp:12, gold:18, spell:'flame', inflict:{status:'sleep',rate:0.25} },
   golem:  { name:'いわの きょじん',art:'🗿', hp:34, atk:17, def:10, spd:3,  xp:20, gold:28 },
@@ -902,7 +902,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='4.7';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='4.9';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1282,7 +1282,7 @@ const game = {
   devStart(){
     const p=freshPlayer();
     this.p=p;
-    // 勇者を Lv15 まで成長
+    // 勇者を Lv15 まで成長（職業未設定段階なのでheroとして固定成長）
     while(p.lv<15){ p.lv++;
       p.maxHp+=8; p.maxMp+=4; p.baseAtk+=1; p.baseDef+=1;
       const l=LEARN[p.lv]; if(l&&!p.spells.includes(l)) p.spells.push(l);
@@ -1380,6 +1380,16 @@ const game = {
     };
     return fill(def, saved);
   },
+  // 既存セーブデータへの一度きりのパッチ（v4.7〜：職業別成長への移行補正）
+  _patchStat(){
+    const p=this.p; if(!p||p._statPatched) return;
+    // 過去の固定値レベルアップで足りない分を lv×8 ぶん追加
+    const bonus=p.lv*8;
+    p.maxHp+=bonus; p.hp=Math.min(p.hp+bonus, p.maxHp);
+    p.baseAtk+=Math.floor(p.lv*0.5); p.baseDef+=Math.floor(p.lv*0.5);
+    p._statPatched=true;
+    this.save();
+  },
   // アップデート確認：サーバーの version.json を読み、手元より新しければシークバー演出→再読み込み
   async checkUpdate(){
     const msg=document.getElementById('updateMsg');
@@ -1447,6 +1457,7 @@ const game = {
       const saved=JSON.parse(r.value);
       this.p=this.migrateSave(saved);
       this.p.status='';
+      this._patchStat(); // 既存データのステータス補正（一度きり）
       // 塔でセーブしていた場合：ランダム生成マップを再生成して入口から復帰
       if(this.p.map==='tower'){
         const floor=this.p.towerFloor||1;
@@ -1704,12 +1715,14 @@ const game = {
       });
       return;
     }
+    // 塔の入口（Oタイル）：乗ったら即入場（WARPSに登録なしでも動作）
+    if(p.map==='world' && t==='O'){
+      this.enterTowerFromWorld(); return;
+    }
     const w=WARPS.find(w=>w.map===p.map&&w.x===nx&&w.y===ny);
     if(w){
-      if(t==='>') this.promptWarp(w);   // 階段だけ「すすむ/まだ」を聞く
-      else if(t==='O'){                 // 塔の入口：乗ったら即入場
-        this.enterTowerFromWorld(); }
-      else this.doWarp(w);              // 村・町・城・洞窟の出入りは乗ったら即入場
+      if(t==='>') this.promptWarp(w);
+      else this.doWarp(w);
       return;
     }
     // エルフ国：世界樹の前に出現する「帰還の扉」(6,8)→もとの国の橋の中央へ
@@ -2470,25 +2483,27 @@ const game = {
   enterTowerFromWorld(){
     const p=this.p;
     const best=p.towerBest||0;
-    // 40階以上到達済みならエレベーター権利付与（過去プレイ分も適用）
     if(best>=40 && !p.flags.hasElevator) p.flags.hasElevator=true;
     if(p.flags.hasElevator){
-      const floors=[];
-      for(let f=1;f<=best;f+=5) floors.push(f);
-      if(!floors.includes(best)) floors.push(best);
-      this.message([
-        'むげんの とうの まえに たつ。',
-        `エレベーターが つかえます。（さいかい とうたつ：${best}かい）`,
-        'なんかいから のぼりますか？',
-      ],()=>{
+      // カウンター方式で階数を選ぶ
+      let sel=best; // デフォルトは最高到達階
+      const showElevator=()=>{
         this.cmdCtx='field';
-        this.cmdItems=floors.map(f=>({
-          label:`${f}かいから のぼる`,
-          act:()=>{ this.closeCmd(); this.enterTower(f); }
-        }));
-        this.cmdItems.push({label:'やめる',act:()=>{ this.closeCmd(); }});
-        this.cmdSel=0; this.renderCmd('cmdBox');
-      });
+        this.cmdItems=[
+          { label:`▲+10階`, act:()=>{ sel=Math.min(best,sel+10); showElevator(); } },
+          { label:`▲+1階`,  act:()=>{ sel=Math.min(best,sel+1);  showElevator(); } },
+          { label:`▼-1階`,  act:()=>{ sel=Math.max(1,sel-1);     showElevator(); } },
+          { label:`▼-10階`, act:()=>{ sel=Math.max(1,sel-10);    showElevator(); } },
+          { label:`→ ${sel}かいへ のぼる！`, act:()=>{ this.closeCmd(); this.enterTower(sel); } },
+          { label:`やめる`,  act:()=>{ this.closeCmd(); } },
+        ];
+        this.cmdSel=4; this.renderCmd('cmdBox');
+        // メッセージに現在選択階を表示
+        const txt=document.getElementById('msgText');
+        if(txt) txt.textContent=`エレベーター\n▶ ${sel}かい （さいこう：${best}かい）\n1〜${best}のあいだで かいすうを えらんでください。`;
+      };
+      document.getElementById('msgBox').classList.add('show');
+      showElevator();
     } else {
       this.message([
         'むげんの とうの まえに たつ。',
@@ -2578,10 +2593,23 @@ const game = {
   },
   towerEncounter(){
     const f=this.p.towerFloor;
-    // 5%でレベルアッパーが出現（塔内は特に低確率）
     if(Math.random()<0.05) return ['lvupper'];
-    const pool = f<=3?['slime','ghost','bat'] : f<=7?['wolf','mage','bat','ghost'] : f<=12?['golem','mage','reaper','wolf'] : ['reaper','golem','reaper','mage'];
-    const n = f<=3?1 : f<=8?(Math.random()<0.5?2:1) : (Math.random()<0.5?3:2);
+    // 階層に応じた敵プールと出現数（高層ほど強敵・多数）
+    let pool, n;
+    if(f<=5){
+      pool=['slime','ghost','bat']; n=1;
+    } else if(f<=10){
+      pool=['wolf','mage','bat','ghost']; n=Math.random()<0.4?2:1;
+    } else if(f<=20){
+      pool=['golem','mage','reaper','wolf']; n=Math.random()<0.5?2:1;
+    } else if(f<=35){
+      pool=['reaper','golem','mage','reaper']; n=Math.random()<0.6?3:2;
+    } else if(f<=60){
+      pool=['reaper','golem','reaper','treant']; n=Math.random()<0.5?3:2;
+    } else {
+      // 60階超：最強クラス複数
+      pool=['reaper','treant','reaper']; n=Math.random()<0.4?4:3;
+    }
     const group=[]; for(let i=0;i<n;i++) group.push(this.pick(pool));
     return group;
   },
@@ -3077,21 +3105,34 @@ const game = {
     // arg: 敵キー1つ(ボス) または 敵キー配列(グループ)
     let keys = Array.isArray(arg)?arg:[arg];
     let f=this.p.map==='cave2'?1.15:(this.p.map==='cave1'?1.05:1);
-    if(this.p.map==='tower') f=1+(this.p.towerFloor||1)*0.08; // 階が深いほど強い
+    if(this.p.map==='tower'){
+      const floor=this.p.towerFloor||1;
+      // 1〜5階：1.0〜1.2、10階：1.5、20階：2.2、50階：4.0、100階：7.0
+      f = 1 + Math.pow(floor, 0.75) * 0.12;
+    }
     this.enemies = keys.map((key,i)=>{
       const b=ENEMIES[key]; let sc=b.boss?1:f;
-      // 裏ボス アビスは 撃破するたび さらに強くなる（裏の裏ボス）
       let suffix='';
       if(key==='abyss'){
         const clears=this.p.flags.abyssClears||0;
-        sc = 1 + clears*0.6;                 // 撃破ごとに +60%（後で調整しやすい係数）
-        if(clears>0) suffix=' ＋'+clears;     // 名前に強化段階を付与
+        sc = 1 + clears*0.6;
+        if(clears>0) suffix=' ＋'+clears;
+      }
+      // dynamic敵（レベルアッパー等）：プレイヤーの素のステータスに合わせる
+      let hp,atk,def;
+      if(b.dynamic){
+        hp  = this.p.maxHp;
+        atk = this.p.baseAtk;
+        def = Math.max(1, Math.floor(this.p.baseDef * 0.8));
+      } else {
+        hp  = Math.round(b.hp*sc);
+        atk = Math.round(b.atk*sc);
+        def = Math.round(b.def*sc);
       }
       return { side:'enemy', key, name:b.name+suffix, art:b.art, boss:!!b.boss, spell:b.spell||null,
         form2:b.form2?Object.assign({},b.form2,{name:b.form2.name+suffix}):null, transformed:false,
         inflict:b.inflict||null,
-        maxHp:Math.round(b.hp*sc), hp:Math.round(b.hp*sc),
-        atk:Math.round(b.atk*sc), def:Math.round(b.def*sc), spd:b.spd||8,
+        maxHp:hp, hp:hp, atk:atk, def:def, spd:b.spd||8,
         xp:Math.round(b.xp*sc), gold:Math.round(b.gold*sc), alive:true, slot:i };
     });
     this.allies = this.buildAllies();
@@ -3911,19 +3952,15 @@ const game = {
     // レベルアッパーを倒した場合：強制1レベルアップ（お金不要）
     const beatLvUpper=this.enemies.some(e=>e.key==='lvupper');
     if(beatLvUpper){
-      this.p.lv+=1;
-      this.p.maxHp+=8; this.p.maxMp+=4; this.p.baseAtk+=1; this.p.baseDef+=1;
-      this.p.hp=this.p.maxHp; this.p.mp=this.p.maxMp;
-      const ll=LEARN[this.p.lv]; if(ll&&!this.p.spells.includes(ll)) this.p.spells.push(ll);
+      const g=this._applyHeroLvUp();
       audio.se('levelup'); this.updateStrip();
       const lvLines=[
         'レベルアッパー「フフフ…やるじゃないか。」',
         'レベルアッパー「ま、まいったぜ…。しかたない、ちからを わけてやる。」',
         'レベルアッパー「かんしゃ しなさい！これが わたしの さいごの しごとだ！」',
-        `ゆうしゃは レベル ${this.p.lv} に あがった！`,
-        `さいだいHP+8 こうげき+1 まもり+1`,
+        `ゆうしゃは レベル ${this.p.lv} に あがった！（HP+${g.hp} MP+${g.mp} こうげき+${g.atk} まもり+${g.def}）`,
       ];
-      if(ll) lvLines.push(`じゅもん「${SPELLS[ll]?.name||ll}」を おぼえた！`);
+      const ll=LEARN[this.p.lv]; if(ll) lvLines.push(`じゅもん「${SPELLS[ll]?.name||ll}」を おぼえた！`);
       this.message(lvLines,()=>this.endBattle());
       return;
     }
@@ -4004,12 +4041,39 @@ const game = {
     audio.se('heal');
     return out;
   },
+  // 職業別1レベルアップ時の成長量を返す
+  // 転職前:固定、1次職:小幅ランダム、2次職:中幅ランダム、3次職:大幅ランダム
+  _lvUpStat(){
+    const job=this.p.job||'hero';
+    const tier2=['general','berserker'];
+    const tier1=['paladin','hero_k'];
+    // 3次職（未実装だが定義済み）
+    // const tier3=['???'];
+    if(tier2.includes(job)){
+      // 2次職：HP+5〜25、MP+2〜10、ATK+1〜5、DEF+1〜5
+      return { hp:this.randi(5,25), mp:this.randi(2,10), atk:this.randi(1,5), def:this.randi(1,5) };
+    } else if(tier1.includes(job)){
+      // 1次職：HP+2〜10、MP+1〜4、ATK+1〜3、DEF+1〜3
+      return { hp:this.randi(2,10), mp:this.randi(1,4), atk:this.randi(1,3), def:this.randi(1,3) };
+    } else {
+      // 転職前（hero等）：固定
+      return { hp:8, mp:4, atk:1, def:1 };
+    }
+  },
+  // 勇者を1レベルアップさせて成長量を返す（表示用）
+  _applyHeroLvUp(){
+    const g=this._lvUpStat();
+    this.p.lv+=1;
+    this.p.maxHp+=g.hp; this.p.maxMp+=g.mp; this.p.baseAtk+=g.atk; this.p.baseDef+=g.def;
+    this.p.hp=this.p.maxHp; this.p.mp=this.p.maxMp;
+    const l=LEARN[this.p.lv]; if(l&&!this.p.spells.includes(l)) this.p.spells.push(l);
+    return g;
+  },
   checkLevel(){ const out=[]; let need=NEED_XP(this.p.lv);
-    while(this.p.xp>=need){ this.p.xp-=need; this.p.lv++;
-      this.p.maxHp+=8; this.p.maxMp+=4; this.p.baseAtk+=1; this.p.baseDef+=1;
-      this.p.hp=this.p.maxHp; this.p.mp=this.p.maxMp;
-      out.push(`ゆうしゃの レベルが ${this.p.lv}に あがった！`);
-      const l=LEARN[this.p.lv]; if(l&&!this.p.spells.includes(l)){ this.p.spells.push(l); out.push(`じゅもん「${SPELLS[l].name}」を おぼえた！`); }
+    while(this.p.xp>=need){ this.p.xp-=need;
+      const g=this._applyHeroLvUp();
+      out.push(`ゆうしゃの レベルが ${this.p.lv}に あがった！（HP+${g.hp} MP+${g.mp} こうげき+${g.atk} まもり+${g.def}）`);
+      const l=LEARN[this.p.lv]; if(l&&this.p.spells.includes(l)) out.push(`じゅもん「${SPELLS[l].name}」を おぼえた！`);
       need=NEED_XP(this.p.lv);
     }
     // 仲間の成長: 戦闘終了時にHP0の仲間は経験値が入らない（=成長も蘇生もしない）。
