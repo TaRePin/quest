@@ -256,6 +256,7 @@
   #poisonFlash.on{animation:pf .4s;}
   @keyframes pf{0%{opacity:.7}100%{opacity:0}}
   .hp-bar-poison i{background:linear-gradient(90deg,#a000c0,#d060ff) !important;}
+  @keyframes fxSpark{0%{transform:scale(1) translate(0,0);opacity:1}100%{transform:scale(0) translate(var(--dx,20px),var(--dy,-30px));opacity:0}}
   @keyframes bf{0%{opacity:.5;}100%{opacity:0;}}
   #bShake.shake{animation:bshake .35s;}
   @keyframes bshake{0%,100%{transform:translate(0,0);}20%{transform:translate(-6px,3px);}60%{transform:translate(5px,-2px);}}
@@ -737,12 +738,40 @@ const ALLIES = {
 };
 
 const SPELLS = {
-  heal:    { name:'いやし',     mp:3,  type:'heal',  amt:30, field:true },
-  flame:   { name:'ほのお',     mp:4,  type:'dmg',   base:16 },
-  bigheal: { name:'だいいやし', mp:8,  type:'heal',  amt:90, field:true },
-  bigflame:{ name:'だいほのお', mp:12, type:'dmg',   base:50 },
+  // ── 回復系 ──
+  heal:     { name:'いやし',     mp:3,  type:'heal',  amt:30,  field:true,  desc:'HPを 30 かいふく' },
+  bigheal:  { name:'だいいやし', mp:8,  type:'heal',  amt:90,  field:true,  desc:'HPを 90 かいふく' },
+  fullheal: { name:'だいかいふく', mp:18, type:'heal', pct:0.8, field:true,  desc:'HPを 8わりかいふく' },
+  antidote: { name:'どくけし',   mp:4,  type:'cure',  field:true,  desc:'どくを なおす' },
+  regen:    { name:'リジェネ',   mp:10, type:'regen', turns:6, field:false, desc:'6ターン まいターン HP10%かいふく' },
+  // ── 攻撃系 ──
+  flame:    { name:'ほのお',     mp:4,  type:'dmg',   elem:'fire',  base:16,  desc:'ほのおで てきを こうげき' },
+  bigflame: { name:'だいほのお', mp:12, type:'dmg',   elem:'fire',  base:50,  desc:'おおきな ほのおで こうげき' },
+  thunder:  { name:'サンダー',   mp:6,  type:'dmg',   elem:'bolt',  base:28,  desc:'いなずまで てきを こうげき' },
+  blizzard: { name:'ブリザド',   mp:6,  type:'dmg',   elem:'ice',   base:28,  desc:'こおりで てきを こうげき' },
+  thundaga: { name:'サンダガ',   mp:20, type:'dmg',   elem:'bolt',  base:90,  desc:'きょだいな いなずまで こうげき' },
+  // ── 強化系 ──
+  phalanx:  { name:'ファランクス', mp:12, type:'buff', kind:'phalanx',  turns:5,  field:false, desc:'5ターン ひばダメージを 50%カット' },
+  stoneskin:{ name:'ストンスキン', mp:14, type:'buff', kind:'stoneskin',wall:200, field:false, desc:'200ダメージまでの ぼうへきを つくる' },
+  protect:  { name:'プロテス',   mp:10, type:'buff', kind:'protect',  bonusDef:100, turns:10, field:false, desc:'10ターン ぼうぎょを 100 アップ' },
+  strength: { name:'ストレンジ', mp:14, type:'buff', kind:'strength', mult:2, turns:3, field:false, desc:'3ターン こうげきを 2ばいに する' },
 };
-const LEARN = { 3:'heal', 5:'flame', 9:'bigheal', 13:'bigflame' };
+const LEARN = {
+   3:'heal',      // Lv3  いやし
+   5:'flame',     // Lv5  ほのお
+   7:'antidote',  // Lv7  どくけし
+   9:'bigheal',   // Lv9  だいいやし
+  11:'thunder',   // Lv11 サンダー
+  13:'blizzard',  // Lv13 ブリザド
+  15:'bigflame',  // Lv15 だいほのお
+  18:'regen',     // Lv18 リジェネ
+  22:'protect',   // Lv22 プロテス
+  26:'phalanx',   // Lv26 ファランクス
+  30:'fullheal',  // Lv30 だいかいふく
+  35:'stoneskin', // Lv35 ストンスキン
+  40:'strength',  // Lv40 ストレンジ
+  50:'thundaga',  // Lv50 サンダガ
+};
 
 // とくぎ（戦闘特技）。賢者=かちこち / せんし=挑発
 const SKILLS = {
@@ -902,7 +931,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='5.0';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='5.1';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -2930,10 +2959,20 @@ const game = {
     this.cmdItems.push({label:'もどる',act:()=>this.openFieldMenu()}); this.cmdSel=0; this.renderCmd('cmdBox');
   },
   castField(k){ const s=SPELLS[k]; if(this.p.mp<s.mp){ this.message(['MPが たりない。']); return; }
-    this.p.mp-=s.mp; const before=this.p.hp; this.p.hp=Math.min(this.p.maxHp,this.p.hp+s.amt);
-    const healed=this.p.hp-before;
-    audio.se('heal'); this.updateStrip(); this.closeCmd();
-    this.message([`${s.name}を となえた！\nHPが ${healed} かいふく した。`]);
+    this.p.mp-=s.mp; this.closeCmd();
+    if(s.type==='heal'){
+      const amt=s.pct?Math.floor(this.p.maxHp*s.pct):s.amt;
+      const before=this.p.hp; this.p.hp=Math.min(this.p.maxHp,this.p.hp+amt);
+      audio.se('heal'); this.updateStrip();
+      this.message([`${s.name}を となえた！\nHPが ${this.p.hp-before} かいふく した。`]);
+    } else if(s.type==='cure'){
+      this.p.status=''; this.p._poisonSteps=0; this.p._poisonTTL=0;
+      audio.se('heal'); this.updateStrip();
+      this.message([`${s.name}を となえた！\nじょうたいいじょうが なおった！`]);
+    } else {
+      this.p.mp+=s.mp; // 消費取り消し
+      this.message([`${s.name}は フィールドでは つかえない。`]);
+    }
   },
   fieldItemMenu(){ const keys=Object.keys(this.p.items).filter(k=>this.p.items[k]>0);
     if(!keys.length){ this.message(['どうぐを もっていない。']); return; }
@@ -3189,11 +3228,35 @@ const game = {
         this.provokeTarget=null;
       }
     }
+    // ファランクス（被ダメ50%カット）ターン減算
+    if(this._phalanxTurns>0){ this._phalanxTurns--;
+      if(this._phalanxTurns<=0) this.toast('ファランクスの まもりが きれた。');
+    }
+    // プロテス（防御ボーナス）ターン減算
+    this.allies.forEach(a=>{
+      if(a._protectTurns>0){ a._protectTurns--;
+        if(a._protectTurns<=0){ a._protectBonus=0; }
+      }
+    });
+    // ストレンジ（攻撃倍率）ターン減算
+    const hero=this.allies.find(a=>a.isHero);
+    if(hero&&hero._strengthTurns>0){ hero._strengthTurns--;
+      if(hero._strengthTurns<=0){ hero._strengthMult=1; this.toast('ストレンジの ちからが きれた。'); }
+    }
+    // リジェネ（毎ターンHP回復）処理
+    const regenMsgs=[];
+    this.allies.forEach(a=>{
+      if(a.alive&&!a.noVitals&&(a.regenTurns||0)>0){
+        const heal=Math.max(1,Math.floor(a.maxHp*0.10));
+        a.hp=Math.min(a.maxHp,a.hp+heal); a.regenTurns--;
+        regenMsgs.push(`${a.name} HP+${heal}`);
+      }
+    });
+    if(regenMsgs.length){ this.fxHeal(); this.renderParty(); }
     // 「あい」モード（あいのうた）の持続
     if(this.loveTurns>0){
       this.loveTurns--;
       if(this.loveTurns<=0){
-        const hero=this.allies.find(a=>a.isHero);
         if(hero && hero._loveTurns){
           if(hero._loveAtk){ hero.atk-=hero._loveAtk; hero._loveAtk=0; }
           if(hero._loveDef){ hero.def-=hero._loveDef; hero._loveDef=0; }
@@ -3204,7 +3267,7 @@ const game = {
       }
     }
     this.enemies.concat(this.allies).forEach(u=>u.done=false);
-    this.renderEnemies(); // 倒した敵の表示を整理
+    this.renderEnemies();
     // コマンド入力待ちの味方（姫=noVitalsは手番を持たない。あいゲージ満タンで自動発動する）
     this.allyQueue = this.aliveAllies().filter(a=>!a.noVitals);
     // ターン開始時、あいゲージが満タンなら自動であいのうた発動
@@ -3411,46 +3474,60 @@ const game = {
   },
   autoChoose(){
     const a=this.curActor;
-    const healSpell = (a.spells||[]).find(s=>SPELLS[s].type==='heal');
+    // 最も強力な回復呪文を選択（pct優先→amt大→通常の順）
+    const healSpells=(a.spells||[]).filter(s=>SPELLS[s].type==='heal');
+    const healSpell=healSpells.sort((x,y)=>{
+      const sx=SPELLS[x],sy=SPELLS[y];
+      return (sy.pct||0)-(sx.pct||0)||(sy.amt||0)-(sx.amt||0);
+    })[0];
+    const cureSpell=(a.spells||[]).find(s=>SPELLS[s].type==='cure');
+    // 毒にかかっている味方がいるか
+    const hasPoisoned=this.healableAllies().some(x=>x.status==='poison');
 
     if(this.autoCare){
-      // 「いのちだいじに」：回復魔法とバフ(とくぎ)以外は使わない
-      // 1) 味方の誰かがHP6割以下なら回復を最優先（HPを持つ仲間のみ＝姫は除外）
+      // 毒にかかっている場合はどくけしを優先
+      if(cureSpell && hasPoisoned && a.mp>=SPELLS[cureSpell].mp){
+        this.actions.push({ actor:a, type:'spell', spell:cureSpell });
+        this.allyQueue.shift(); this.inputNextAlly(); return;
+      }
       const hurtC = this.healableAllies().some(x=>x.hp<=x.maxHp*0.6);
       if(healSpell && hurtC && a.mp>=SPELLS[healSpell].mp){
         this.actions.push({ actor:a, type:'spell', spell:healSpell });
         this.allyQueue.shift(); this.inputNextAlly(); return;
       }
-      // 2) バフのとくぎ（賢者かちこち＝被ダメ減 / 戦士ちょうはつ＝防御バフ）をまだ使っていなければ使う
       const skills=this.skillsFor(a);
       for(const k of skills){
         const s=SKILLS[k];
         if(k==='kachikochi'){
-          if(this.guardAllTurns>0) continue;          // 効果中は重ねない
+          if(this.guardAllTurns>0) continue;
           if(s.mp && a.mp<s.mp) continue;
           this.actions.push({ actor:a, type:'skill', skill:k });
           this.allyQueue.shift(); this.inputNextAlly(); return;
         }
         if(k==='provoke'){
-          if(a._provokeUsed) continue;                // 1戦闘1回
+          if(a._provokeUsed) continue;
           this.actions.push({ actor:a, type:'skill', skill:k });
           this.allyQueue.shift(); this.inputNextAlly(); return;
         }
       }
-      // 3) 回復もバフも不要／不可なら、攻撃呪文は使わず通常攻撃のみ（MP温存）
       const tgtC=this.aliveEnemies().sort((x,y)=>x.hp-y.hp)[0];
       this.actions.push({ actor:a, type:'attack', target:tgtC });
       this.allyQueue.shift(); this.inputNextAlly(); return;
     }
 
-    // 通常オート: 回復役は味方がHP4割以下なら回復を優先（HPを持つ仲間のみ＝姫は除外）
+    // 通常オート
+    if(cureSpell && hasPoisoned && a.mp>=SPELLS[cureSpell].mp){
+      this.actions.push({ actor:a, type:'spell', spell:cureSpell });
+      this.allyQueue.shift(); this.inputNextAlly(); return;
+    }
     const hurt = this.healableAllies().some(x=>x.hp<=x.maxHp*0.4);
     if(healSpell && hurt && a.mp>=SPELLS[healSpell].mp){
       this.actions.push({ actor:a, type:'spell', spell:healSpell });
       this.allyQueue.shift(); this.inputNextAlly(); return;
     }
-    // 攻撃呪文を使えるなら（MPに余裕があれば）優先
-    const atkSpell = (a.spells||[]).find(s=>SPELLS[s].type==='dmg');
+    // 最も強い攻撃呪文を選択
+    const atkSpells=(a.spells||[]).filter(s=>SPELLS[s].type==='dmg');
+    const atkSpell=atkSpells.sort((x,y)=>(SPELLS[y].base||0)-(SPELLS[x].base||0))[0];
     if(atkSpell && a.mp>=SPELLS[atkSpell].mp && a.mp>a.maxMp*0.3){
       this.actions.push({ actor:a, type:'spell', spell:atkSpell, target:this.pick(this.aliveEnemies()) });
       this.allyQueue.shift(); this.inputNextAlly(); return;
@@ -3508,8 +3585,8 @@ const game = {
   cmdSpellPick(k){
     const s=SPELLS[k];
     if(this.curActor.mp<s.mp){ this.message(['MPが たりない！'],()=>this.cmdSpellMenu()); return; }
-    if(s.type==='heal'){
-      // 回復は味方対象（負傷の多い味方を選ぶ：自動で最もHP割合低い味方）
+    // 自分・味方対象（heal/cure/regen/buff）か敵対象(dmg)かで分岐
+    if(s.type==='heal'||s.type==='cure'||s.type==='regen'||s.type==='buff'){
       this.actions.push({ actor:this.curActor, type:'spell', spell:k });
       this.allyQueue.shift(); this.inputNextAlly();
     } else {
@@ -3659,13 +3736,34 @@ const game = {
       this.message([`${actor.name}の こうげき！\nしかし ミスした！`],()=>this.cont()); return; }
     const crit=Math.random()<this.critChance(actor);
     let dmg=Math.max(1,actor.atk-target.def+this.randi(-2,2)); if(crit) dmg=Math.round(dmg*1.8);
+    // ストレンジ：勇者の攻撃倍率
+    if(actor.isHero && actor._strengthMult>1) dmg=Math.round(dmg*actor._strengthMult);
     let furyLine='';
     if(this.furyActive(actor)){ dmg=Math.round(dmg*2); furyLine='\n🔥バーサーカーの ぶじ！ ダメージ2ばい！';
       audio.se('flame'); this.fxFuryOn(); }
+    const strengthLine=(actor.isHero&&actor._strengthMult>1)?'\n⚡ストレンジ こうか！':'';
     this.damageEnemy(target,dmg,crit,
-      `${actor.name}の こうげき！\n${target.name}に ${dmg}の ダメージ！${crit?'（かいしんの いちげき！）':''}${furyLine}`);
+      `${actor.name}の こうげき！\n${target.name}に ${dmg}の ダメージ！${crit?'（かいしんの いちげき！）':''}${furyLine}${strengthLine}`);
   },
   // バーサーカーのfury発動エフェクト（炎の演出）
+  fxSpell(type){
+    const L=this.fxLayer(); if(!L) return;
+    const colors={
+      heal:'#6eff9a', cure:'#c0ff60', regen:'#40ffb0',
+      phalanx:'#6090ff', stoneskin:'#a0c0ff', protect:'#60a0ff', strength:'#ff9900',
+      fire:'#ff6020', bolt:'#ffe030', ice:'#80d0ff', buff:'#d0a0ff'
+    };
+    const col=colors[type]||'#fff';
+    for(let i=0;i<18;i++){
+      const p=document.createElement('div');
+      p.className='fx fx-spark';
+      p.style.cssText=`position:absolute;width:8px;height:8px;border-radius:50%;background:${col};
+        left:${20+Math.random()*60}%;top:${10+Math.random()*60}%;
+        animation:fxSpark .5s ease-out forwards;animation-delay:${i*25}ms;
+        box-shadow:0 0 8px ${col};`;
+      L.appendChild(p); setTimeout(()=>p.remove(),600+i*25);
+    }
+  },
   fxFuryOn(){ const L=this.fxLayer();
     for(let i=0;i<14;i++){ const f=document.createElement('div'); f.className='fx fx-flame';
       f.style.left=(6+Math.random()*30)+'%'; f.style.top=(40+Math.random()*40)+'%';
@@ -3701,6 +3799,7 @@ const game = {
     const crit=Math.random()<this.critChance(actor);
     let dmg=Math.max(1,actor.atk-target.def+this.randi(-2,2)); if(crit) dmg=Math.round(dmg*1.8);
     if(this.furyActive(actor)){ dmg=Math.round(dmg*2); if(n===1) this.fxFuryOn(); }
+    if(actor.isHero && actor._strengthMult>1) dmg=Math.round(dmg*actor._strengthMult);
     // アルマス：光ダメージ50固定を上乗せ（防御無視）
     const lightDmg = (this.p.equip.weapon==='almace' && GEAR.almace.lightDmg) ? GEAR.almace.lightDmg : 0;
     if(lightDmg) dmg += lightDmg;
@@ -3734,20 +3833,62 @@ const game = {
   },
   doAllySpell(actor, key, target){
     const s=SPELLS[key]; actor.mp-=s.mp;
+    const hero=this.allies.find(a=>a.isHero);
+
+    // ── 回復系 ──
     if(s.type==='heal'){
-      // 最もHP割合の低い生存味方を回復（HPを持つ仲間のみ＝姫は除外）
       const tgt=this.healableAllies().sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
-      const before=tgt.hp; tgt.hp=Math.min(tgt.maxHp,tgt.hp+s.amt); const h=tgt.hp-before;
-      audio.se('heal'); this.fxHeal(); this.renderParty();
+      if(!tgt){ this.message([`${actor.name}は ${s.name}を となえた！\n…しかし だれにも ひびかなかった。`],()=>this.cont()); return; }
+      const healed=s.pct?Math.floor(tgt.maxHp*s.pct):s.amt;
+      const before=tgt.hp; tgt.hp=Math.min(tgt.maxHp,tgt.hp+healed); const h=tgt.hp-before;
+      audio.se('heal'); this.fxHeal(); this.fxSpell('heal'); this.renderParty();
       this.message([`${actor.name}は ${s.name}を となえた！\n${tgt.name}の HPが ${h} かいふく！`],()=>this.cont());
-    } else {
-      if(!target||!target.alive) target=this.aliveEnemies()[0];
-      if(!target){ this.nextAction(); return; }
-      const bonus = actor.key==='sage' ? 1.5 : 1;  // 賢者は呪文が強い
-      const dmg=Math.max(1,Math.round((s.base+this.randi(-3,3))*bonus));
-      audio.se('flame'); this.fxFlameOn(target.slot);
-      this.damageEnemy(target,dmg,false,`${actor.name}は ${s.name}を となえた！\n${target.name}に ${dmg}の ダメージ！`);
+      return;
     }
+    // ── 毒消し ──
+    if(s.type==='cure'){
+      const ct=this.healableAllies().find(a=>a.status)||(hero||this.healableAllies()[0]);
+      if(ct){ ct.status=''; if(ct.isHero){this.p.status='';this.p._poisonSteps=0;this.p._poisonTTL=0;} }
+      audio.se('heal'); this.fxSpell('cure'); this.renderParty();
+      this.message([`${actor.name}は ${s.name}を となえた！\nじょうたいいじょうが なおった！`],()=>this.cont());
+      return;
+    }
+    // ── リジェネ ──
+    if(s.type==='regen'){
+      this.allies.forEach(a=>{ if(a.alive&&!a.noVitals) a.regenTurns=s.turns; });
+      audio.se('heal'); this.fxHeal(); this.fxSpell('regen'); this.renderParty();
+      this.message([`${actor.name}は ${s.name}を となえた！\nみかた ぜんいんに さいせいの ちからが みなぎった！（${s.turns}ターン）`],()=>this.cont());
+      return;
+    }
+    // ── 強化系 ──
+    if(s.type==='buff'){
+      const spellFxType={phalanx:'phalanx',stoneskin:'stoneskin',protect:'protect',strength:'strength'}[s.kind]||'buff';
+      audio.se('heal'); this.fxHeal(); this.fxSpell(spellFxType); this.renderParty();
+      if(s.kind==='phalanx'){
+        this._phalanxTurns=s.turns;
+        this.message([`${actor.name}は ${s.name}を となえた！\nみかた ぜんいんが てっぺきの まもりを てにいれた！\nひばダメージ 50%カット（${s.turns}ターン）`],()=>this.cont());
+      } else if(s.kind==='stoneskin'){
+        if(hero) hero._stoneskinWall=s.wall;
+        this.message([`${actor.name}は ${s.name}を となえた！\nゆうしゃに ${s.wall}の ぼうへきが できた！`],()=>this.cont());
+      } else if(s.kind==='protect'){
+        this.allies.forEach(a=>{ if(a.alive&&!a.noVitals){ a._protectBonus=s.bonusDef; a._protectTurns=s.turns; } });
+        this.message([`${actor.name}は ${s.name}を となえた！\nみかた ぜんいんの ぼうぎょが ${s.bonusDef} あがった！（${s.turns}ターン）`],()=>this.cont());
+      } else if(s.kind==='strength'){
+        if(hero){ hero._strengthMult=s.mult; hero._strengthTurns=s.turns; }
+        this.message([`${actor.name}は ${s.name}を となえた！\nゆうしゃの こうげきが ${s.mult}ばいに なった！（${s.turns}ターン）`],()=>this.cont());
+      } else {
+        this.message([`${actor.name}は ${s.name}を となえた！`],()=>this.cont());
+      }
+      return;
+    }
+    // ── 攻撃系 ──
+    if(!target||!target.alive) target=this.aliveEnemies()[0];
+    if(!target){ this.nextAction(); return; }
+    const bonus = actor.key==='sage' ? 1.5 : 1;
+    const dmg=Math.max(1,Math.round((s.base+this.randi(-3,3))*bonus));
+    const elemFx={fire:'fire',bolt:'bolt',ice:'ice'}[s.elem]||'fire';
+    audio.se('flame'); this.fxFlameOn(target.slot); this.fxSpell(elemFx);
+    this.damageEnemy(target,dmg,false,`${actor.name}は ${s.name}を となえた！\n${target.name}に ${dmg}の ダメージ！`);
   },
   doAllyItem(actor, k){
     const it=ITEMS[k]; this.p.items[k]--;
@@ -3856,8 +3997,9 @@ const game = {
       target=general;
       coverCut=0.5; // かばうと被ダメ半分
     }
-    const tdef = target.def + (target._defBonus||0);
-    const cut = (this.guardAllTurns>0 ? 0.8 : 1) * coverCut;  // かちこち20%カット × かばう半分
+    const tdef = target.def + (target._defBonus||0) + (target._protectBonus||0); // プロテス防御加算
+    let cut = (this.guardAllTurns>0 ? 0.8 : 1) * coverCut;
+    if(this._phalanxTurns>0) cut *= 0.5; // ファランクス50%カット
     this.enemyAtkMotionOn(enemy.slot);
     // 敵の呪文
     if(enemy.spell && Math.random()<0.35){
@@ -3870,6 +4012,13 @@ const game = {
       return;
     }
     let dmg=Math.max(1,Math.round((enemy.atk-Math.floor(tdef/2)+this.randi(-2,2))*cut));
+    // ストンスキン：壁がダメージを吸収
+    let stoneskinMsg='';
+    if(target._stoneskinWall>0){
+      const absorbed=Math.min(target._stoneskinWall,dmg);
+      target._stoneskinWall-=absorbed; dmg=Math.max(0,dmg-absorbed);
+      stoneskinMsg=`\nぼうへきが ${absorbed}の ダメージを きゅうしゅう！${target._stoneskinWall>0?`（のこり${target._stoneskinWall}）`:'（ぼうへき はかい）'}`;
+    }
     target.hp-=dmg; if(target.hp<=0) target.alive=false;
     this.addLove(this.randi(8,16));   // 戦闘中の被ダメージ：あいゲージが よくたまる
     audio.se('damage'); this.shakeStage(); this.renderParty();
@@ -3880,7 +4029,7 @@ const game = {
       const sname={poison:'どく',sleep:'ねむり'}[target.status]||'いじょう';
       extra=`\n${target.name}は ${sname}に かかった！`;
     }
-    this.message([coverMsg+`${enemy.name}の こうげき！\n${target.name}に ${dmg}の ダメージ！`+(target.alive?'':`\n${target.name}は たおれた！`)+extra],()=>this.afterEnemyHit());
+    this.message([coverMsg+`${enemy.name}の こうげき！\n${target.name}に ${dmg}の ダメージ！`+stoneskinMsg+(target.alive?'':`\n${target.name}は たおれた！`)+extra],()=>this.afterEnemyHit());
   },
   // 敵の攻撃後：勇者がHP半分を切ったら しんぴのよろいの デコイを発動
   afterEnemyHit(){
