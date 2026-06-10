@@ -754,7 +754,7 @@ const SPELLS = {
   phalanx:  { name:'ファランクス', mp:12, type:'buff', kind:'phalanx',  turns:5,  field:false, desc:'5ターン ひばダメージを 50%カット' },
   stoneskin:{ name:'ストンスキン', mp:14, type:'buff', kind:'stoneskin',wall:200, field:false, desc:'200ダメージまでの ぼうへきを つくる' },
   protect:  { name:'プロテス',   mp:10, type:'buff', kind:'protect',  bonusDef:100, turns:10, field:false, desc:'10ターン ぼうぎょを 100 アップ' },
-  strength: { name:'ストレンジ', mp:14, type:'buff', kind:'strength', mult:2, turns:3, field:false, desc:'3ターン こうげきを 2ばいに する' },
+  strength: { name:'バーサク', mp:14, type:'buff', kind:'strength', mult:2, turns:3, field:false, desc:'3ターン こうげきを 2ばいに する（バーサク）' },
 };
 const LEARN = {
    3:'heal',      // Lv3  いやし
@@ -769,7 +769,7 @@ const LEARN = {
   26:'phalanx',   // Lv26 ファランクス
   30:'fullheal',  // Lv30 だいかいふく
   35:'stoneskin', // Lv35 ストンスキン
-  40:'strength',  // Lv40 ストレンジ
+  40:'strength',  // Lv40 バーサク
   50:'thundaga',  // Lv50 サンダガ
 };
 
@@ -931,7 +931,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='5.1';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='5.2';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1409,7 +1409,16 @@ const game = {
     };
     return fill(def, saved);
   },
-  // 既存セーブデータへの一度きりのパッチ（v4.7〜：職業別成長への移行補正）
+  // 現在レベルに達している呪文で未習得のものを付与（新呪文追加時のアップデート対応）
+  _patchSpells(){
+    const p=this.p; if(!p) return;
+    for(const [lv, spellKey] of Object.entries(LEARN)){
+      if(p.lv>=Number(lv) && !p.spells.includes(spellKey)){
+        p.spells.push(spellKey);
+      }
+    }
+  },
+  // 既存セーブへの一度きりのパッチ（v4.7〜：職業別成長への移行補正）
   _patchStat(){
     const p=this.p; if(!p||p._statPatched) return;
     // 過去の固定値レベルアップで足りない分を lv×8 ぶん追加
@@ -1486,7 +1495,9 @@ const game = {
       const saved=JSON.parse(r.value);
       this.p=this.migrateSave(saved);
       this.p.status='';
-      this._patchStat(); // 既存データのステータス補正（一度きり）
+      this._patchStat();
+      // レベルに達しているのに未習得の呪文を一括付与（新呪文追加後のアップデート対応）
+      this._patchSpells();
       // 塔でセーブしていた場合：ランダム生成マップを再生成して入口から復帰
       if(this.p.map==='tower'){
         const floor=this.p.towerFloor||1;
@@ -3238,10 +3249,10 @@ const game = {
         if(a._protectTurns<=0){ a._protectBonus=0; }
       }
     });
-    // ストレンジ（攻撃倍率）ターン減算
+    // バーサク（攻撃倍率）ターン減算
     const hero=this.allies.find(a=>a.isHero);
     if(hero&&hero._strengthTurns>0){ hero._strengthTurns--;
-      if(hero._strengthTurns<=0){ hero._strengthMult=1; this.toast('ストレンジの ちからが きれた。'); }
+      if(hero._strengthTurns<=0){ hero._strengthMult=1; this.toast('バーサクの ちからが きれた。'); }
     }
     // リジェネ（毎ターンHP回復）処理
     const regenMsgs=[];
@@ -3736,12 +3747,12 @@ const game = {
       this.message([`${actor.name}の こうげき！\nしかし ミスした！`],()=>this.cont()); return; }
     const crit=Math.random()<this.critChance(actor);
     let dmg=Math.max(1,actor.atk-target.def+this.randi(-2,2)); if(crit) dmg=Math.round(dmg*1.8);
-    // ストレンジ：勇者の攻撃倍率
+    // バーサク：勇者の攻撃倍率
     if(actor.isHero && actor._strengthMult>1) dmg=Math.round(dmg*actor._strengthMult);
     let furyLine='';
     if(this.furyActive(actor)){ dmg=Math.round(dmg*2); furyLine='\n🔥バーサーカーの ぶじ！ ダメージ2ばい！';
       audio.se('flame'); this.fxFuryOn(); }
-    const strengthLine=(actor.isHero&&actor._strengthMult>1)?'\n⚡ストレンジ こうか！':'';
+    const strengthLine=(actor.isHero&&actor._strengthMult>1)?'\n⚡バーサク こうか！':'';
     this.damageEnemy(target,dmg,crit,
       `${actor.name}の こうげき！\n${target.name}に ${dmg}の ダメージ！${crit?'（かいしんの いちげき！）':''}${furyLine}${strengthLine}`);
   },
@@ -3750,7 +3761,7 @@ const game = {
     const L=this.fxLayer(); if(!L) return;
     const colors={
       heal:'#6eff9a', cure:'#c0ff60', regen:'#40ffb0',
-      phalanx:'#6090ff', stoneskin:'#a0c0ff', protect:'#60a0ff', strength:'#ff9900',
+      phalanx:'#6090ff', stoneskin:'#a0c0ff', protect:'#60a0ff', strength:'#ff6600',
       fire:'#ff6020', bolt:'#ffe030', ice:'#80d0ff', buff:'#d0a0ff'
     };
     const col=colors[type]||'#fff';
