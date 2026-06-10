@@ -749,7 +749,8 @@ const SPELLS = {
   bigflame: { name:'だいほのお', mp:12, type:'dmg',   elem:'fire',  base:50,  desc:'おおきな ほのおで こうげき' },
   thunder:  { name:'サンダー',   mp:6,  type:'dmg',   elem:'bolt',  base:28,  desc:'いなずまで てきを こうげき' },
   blizzard: { name:'ブリザド',   mp:6,  type:'dmg',   elem:'ice',   base:28,  desc:'こおりで てきを こうげき' },
-  thundaga: { name:'サンダガ',   mp:20, type:'dmg',   elem:'bolt',  base:90,  desc:'きょだいな いなずまで こうげき' },
+  thundaga: { name:'サンダガ',   mp:20, type:'dmg', elem:'bolt',  base:90,  desc:'きょだいな いなずまで こうげき' },
+  ultima:   { name:'アルテマ',   mp:60, type:'dmg', elem:'holy',  base:0,   isUltima:true, desc:'せかいじゅの きわみ。10000〜20000の ダメージ（MP大消費）' },
   // ── 強化系 ──
   phalanx:  { name:'ファランクス', mp:12, type:'buff', kind:'phalanx',  turns:5,  field:false, desc:'5ターン ひばダメージを 50%カット' },
   stoneskin:{ name:'ストンスキン', mp:14, type:'buff', kind:'stoneskin',wall:200, field:false, desc:'200ダメージまでの ぼうへきを つくる' },
@@ -931,7 +932,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='5.4';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='5.6';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -2536,7 +2537,7 @@ const game = {
         }
       } else if(p.ownedGear.includes('mysticarmor')){
         // 次の進化のヒント
-        const nextAt = 20 + (curLevel+1)*10;
+        const nextAt = 10 + (curLevel+1)*10;
         if(clears < nextAt) lines.push(`アビス「${nextAt-clears}かい たおせば よろいが さらに つよくなるぞ。」`);
         else lines.push('アビス「だが つぎは もっと つよく なって もどる。」');
       }
@@ -3181,8 +3182,8 @@ const game = {
 
   startBattle(arg){
     // とくぎ効果を初期化（前の戦闘の持ち越し防止）
-    this.guardAllTurns=0; this.provokeTurns=0; this.provokeTarget=null; this.loveTurns=0; this.lovePeak=false; this._decoyUsed=false;
-    this.p._poisonSteps=0; // 毒歩行カウントをリセット
+    this.guardAllTurns=0; this.provokeTurns=0; this.provokeTarget=null; this.loveTurns=0; this.lovePeak=false; this._decoyUsed=false; this._convertUsed=false;
+    this.p._poisonSteps=0;
     // arg: 敵キー1つ(ボス) または 敵キー配列(グループ)
     let keys = Array.isArray(arg)?arg:[arg];
     let f=this.p.map==='cave2'?1.15:(this.p.map==='cave1'?1.05:1);
@@ -3318,13 +3319,10 @@ const game = {
     if(this.curActor.isDecoy){
       if(this.curActor.isDecoySupport){
         this._decoySupport(this.curActor);
-      } else if(this.curActor.isDecoyElf){
-        // エルフの精霊：世界樹の力で勇者の2倍ダメージ確定
+      } else if(this.curActor.isDecoyElf || this.curActor.isDecoyGuard){
+        // エルフの精霊（3体目・4体目）：世界樹魔法
         const tgt=this.aliveEnemies().sort((x,y)=>x.hp-y.hp)[0];
         if(tgt) this.actions.push({ actor:this.curActor, type:'elfSpirit', target:tgt });
-      } else if(this.curActor.isDecoyGuard){
-        // 古の守護者：攻撃しつつ仲間にストンスキンをかける
-        this._decoyGuard(this.curActor);
       } else {
         const tgt=this.aliveEnemies().sort((x,y)=>x.hp-y.hp)[0];
         if(tgt) this.actions.push({ actor:this.curActor, type:'attack', target:tgt });
@@ -4083,6 +4081,19 @@ const game = {
   // 敵の攻撃後：勇者がHP半分を切ったら しんぴのよろいの デコイを発動
   afterEnemyHit(){
     const hero=this.allies.find(a=>a.isHero);
+    // HP0手前コンバート：MPとHPを入れ替え（1戦闘1回、MPが10以上あるとき）
+    if(hero && hero.alive && !this._convertUsed && hero.hp<=0 && hero.mp>=10){
+      this._convertUsed=true;
+      const oldHp=hero.hp, oldMp=hero.mp;
+      hero.hp=Math.max(1, oldMp); hero.mp=0;
+      hero.alive=true;
+      audio.se('levelup'); this.fxHeal(); this.renderParty();
+      this.message([
+        '💫 ゆうしゃは MPを HP に コンバートした！',
+        `HP ${oldMp} で ふんばった！（MP は 0 に）`,
+        '（この わざは 1せんとうに 1かいのみ）',
+      ],()=>this.cont()); return;
+    }
     if(hero && hero.alive && !this._decoyUsed
        && GEAR[this.p.equip.armor] && GEAR[this.p.equip.armor].decoy
        && hero.hp>0 && hero.hp <= hero.maxHp*0.5){
@@ -4100,8 +4111,9 @@ const game = {
     // ── 1体目：攻撃型デコイ（常時） ──
     this.allies.push({ side:'ally', isHero:false, isDecoy:true, isDecoySupport:false, isDecoyElf:false, isDecoyGuard:false,
       key:'decoy', name:'ゆうしゃの ぶんしん',
-      art:hero.art, lv:hero.lv, hp:hero.maxHp, maxHp:hero.maxHp, mp:0, maxMp:0,
-      atk:hero.atk, def:hero.def, spd:hero.spd, spells:[], alive:true, status:'', _targetPriority:0.90 });
+      art:hero.art, lv:hero.lv, hp:hero.maxHp, maxHp:hero.maxHp, mp:hero.maxMp, maxMp:hero.maxMp,
+      atk:hero.atk, def:hero.def, spd:hero.spd, spells:hero.spells.slice(), alive:true, status:'', _targetPriority:0.90,
+      _convertUsed:false });
 
     // ── 2体目：サポートデコイ（+1以上） ──
     if(lv>=1){
@@ -4116,19 +4128,22 @@ const game = {
     if(lv>=2){
       this.allies.push({ side:'ally', isHero:false, isDecoy:true, isDecoySupport:false, isDecoyElf:true, isDecoyGuard:false,
         key:'decoy3', name:'エルフの せいれい',
-        art:'🧚', lv:hero.lv, hp:hero.maxHp*1.2|0, maxHp:hero.maxHp*1.2|0, mp:hero.maxMp, maxMp:hero.maxMp,
-        atk:hero.atk*2, def:hero.def, spd:hero.spd+4, spells:[], alive:true, status:'', _targetPriority:0.50 });
+        art:'🧚', lv:hero.lv, hp:hero.maxHp*1.2|0, maxHp:hero.maxHp*1.2|0, mp:hero.maxMp*2, maxMp:hero.maxMp*2,
+        atk:hero.atk*2, def:hero.def, spd:hero.spd+4, spells:['ultima'], alive:true, status:'', _targetPriority:0.50 });
       msgs.push('🌳 エルフのせいれいが せかいじゅの ちからを かりて あらわれた！');
-      msgs.push('せいれいは てきに ゆうしゃの 2ばいの ダメージを かならず あたえる！');
+      msgs.push('せいれいは MP大消費で てきに 2ばいの ダメージを 3〜5かい れんぞくで あたえる！');
+      msgs.push('アルテマで 10000〜20000 の ダメージを あたえることも！');
     }
 
-    // ── 4体目：古の守護者（+3以上） ──
+    // ── 4体目：エルフの精霊（2体目）（+3以上） ──
     if(lv>=3){
-      this.allies.push({ side:'ally', isHero:false, isDecoy:true, isDecoySupport:false, isDecoyElf:false, isDecoyGuard:true,
-        key:'decoy4', name:'こだいの もりびと',
-        art:'🌲', lv:hero.lv, hp:hero.maxHp*1.5|0, maxHp:hero.maxHp*1.5|0, mp:hero.maxMp, maxMp:hero.maxMp,
-        atk:hero.atk*0.8|0, def:hero.def*2|0, spd:hero.spd-2, spells:hero.spells.slice(), alive:true, status:'', _targetPriority:0.40 });
-      msgs.push('🌲 こだいの もりびとが もりの ちからで めざめた！なかまを まもる ぼうへきを はる！');
+      this.allies.push({ side:'ally', isHero:false, isDecoy:true, isDecoySupport:false, isDecoyElf:true, isDecoyGuard:false,
+        key:'decoy4', name:'エルフの せいれい Ⅱ',
+        art:'🧚', lv:hero.lv, hp:hero.maxHp*1.2|0, maxHp:hero.maxHp*1.2|0, mp:hero.maxMp*2, maxMp:hero.maxMp*2,
+        atk:hero.atk*2, def:hero.def, spd:hero.spd+3, spells:['ultima'], alive:true, status:'', _targetPriority:0.40,
+        _elfDouble:true }); // 攻撃倍・回数倍フラグ
+      msgs.push('🌳 もうひとりの エルフのせいれいも よびだされた！');
+      msgs.push('せいれいⅡは こうげきりょく・れんぞくかいすう ともに さらに 2ばい！');
     }
 
     // +4以上：既存デコイのステータス強化
@@ -4146,13 +4161,39 @@ const game = {
     this.message(msgs, ()=>this.cont());
   },
 
-  // エルフの精霊：世界樹の力で勇者の2倍ダメージ確定（演出付き）
+  // エルフの精霊：MP大消費で倍ダメ魔法を3〜5回連続 or アルテマ
   doElfSpirit(actor, target){
-    if(!target||!target.alive){ target=this.aliveEnemies()[0]; }
+    if(!target||!target.alive) target=this.aliveEnemies()[0];
     if(!target){ this.cont(); return; }
-    const hero=this.allies.find(a=>a.isHero);
-    const dmg=Math.max(1, (hero?hero.atk:actor.atk)*2 - Math.floor(target.def*0.3));
-    // 世界樹の演出：画面に緑のエフェクト
+    // MPが十分あればアルテマを優先（MP60以上）
+    if(actor.mp>=60 && actor.spells.includes('ultima') && Math.random()<0.25){
+      actor.mp-=60;
+      const dmg=10000+Math.floor(Math.random()*10001); // 10000〜20000
+      const L=this.fxLayer(); if(L){
+        for(let i=0;i<32;i++){
+          const p=document.createElement('div');
+          p.style.cssText=`position:absolute;width:${8+Math.random()*16}px;height:${8+Math.random()*16}px;
+            border-radius:50%;background:hsl(${50+Math.random()*60},100%,${60+Math.random()*30}%);
+            left:${Math.random()*100}%;top:${Math.random()*70}%;
+            animation:fxSpark 1s ease-out forwards;animation-delay:${i*20}ms;
+            box-shadow:0 0 20px #fff8a0,0 0 40px #ffe060;`;
+          L.appendChild(p); setTimeout(()=>p.remove(),1200+i*20);
+        }
+      }
+      audio.se('levelup'); this.fxFlameOn(target.slot);
+      this.damageEnemy(target, dmg, false,
+        `🌳✨ せかいじゅの きわみ「アルテマ」！\n${target.name}に ${dmg}の ダメージ！（MP60 しょうひ）`);
+      return;
+    }
+    // 通常：MP大消費で勇者の2倍魔法ダメ×3〜5回連続
+    // _elfDoubleフラグあり（4体目）：攻撃倍率×2・回数×2（6〜10回）
+    const isDouble=!!actor._elfDouble;
+    const hits=(3+Math.floor(Math.random()*3)) * (isDouble?2:1); // 3〜5 or 6〜10回
+    const atkMult=isDouble?4:2; // 4体目は勇者の4倍ダメ
+    const mpCost=Math.min(actor.mp, 8*hits);
+    if(actor.mp<8){ this.cont(); return; }
+    actor.mp=Math.max(0, actor.mp-mpCost);
+    // 世界樹の演出
     const L=this.fxLayer(); if(L){
       for(let i=0;i<24;i++){
         const p=document.createElement('div');
@@ -4164,19 +4205,17 @@ const game = {
         L.appendChild(p); setTimeout(()=>p.remove(),900+i*30);
       }
     }
-    audio.se('levelup'); this.fxFlameOn(target.slot);
-    this.damageEnemy(target, dmg, false,
-      `🌳 エルフのせいれいが せかいじゅのちからを よびだした！\n${target.name}に ${dmg}の ダメージ！（ぼうぎょ むし・かならずあたる）`);
-  },
-  // 古の守護者：攻撃＋味方にストンスキン付与
-  _decoyGuard(actor){
-    const tgt=this.aliveEnemies().sort((x,y)=>x.hp-y.hp)[0];
-    // 仲間のストンスキンが切れていれば付与を優先
-    const hero=this.allies.find(a=>a.isHero);
-    if(hero && (hero._stoneskinWall||0)<=0 && actor.mp>=SPELLS.stoneskin.mp){
-      this.actions.push({ actor, type:'spell', spell:'stoneskin' }); return;
-    }
-    if(tgt) this.actions.push({ actor, type:'attack', target:tgt });
+    // 連続ダメージ（再帰で順番に実行）
+    const heroAtk=this.allies.find(a=>a.isHero)?.atk||actor.atk;
+    const doHit=(n)=>{
+      if(n<=0||!target.alive){ this.cont(); return; }
+      const dmg=Math.max(1, heroAtk*atkMult+this.randi(-10,10));
+      audio.se('flame'); this.fxFlameOn(target.slot);
+      this.damageEnemy(target, dmg, false,
+        `🌳 せかいじゅの ちから（${hits-n+1}/${hits}）\n${target.name}に ${dmg}の まほうダメージ！（MP${Math.ceil(mpCost/hits)}しょうひ）`,
+        ()=>setTimeout(()=>doHit(n-1), target.alive?200:0));
+    };
+    this.message([`🌳 ${actor.name}が ${hits}れんぞく まほうを はなつ！${isDouble?'（こうげきりょく・かいすう ともに 2ばい！）':''}`], ()=>doHit(hits));
   },
   // サポートデコイの行動：回復・バフをひたすらかける
   _decoySupport(actor){
@@ -4216,7 +4255,7 @@ const game = {
     const tgt=this.aliveEnemies().sort((x,y)=>x.hp-y.hp)[0];
     if(tgt) this.actions.push({ actor, type:'attack', target:tgt });
   },
-  damageEnemy(target,dmg,crit,msg){
+  damageEnemy(target,dmg,crit,msg,cb){
     // 先に「今の」対象ノードへ演出を乗せる（renderで作り直す前に）
     audio.se('hit');
     this.flashEnemyOn(target.slot); this.fxTextOn('enemy',target.slot,dmg,crit?'crit':'');
@@ -4230,11 +4269,11 @@ const game = {
       const node=this.enemyNode(target.slot);
       if(node){ node.classList.add('dead'); // HPバーだけ即0に
         const bar=node.querySelector('.b-uhp i'); if(bar) bar.style.width='0%'; }
-      this.message([msg+`\n${target.name}を たおした！`],()=>{ this.renderEnemies(); this.cont(); });
+      this.message([msg+`\n${target.name}を たおした！`],()=>{ this.renderEnemies(); if(cb)cb(); else this.cont(); });
     } else {
       const node=this.enemyNode(target.slot);
       const bar=node&&node.querySelector('.b-uhp i'); if(bar) bar.style.width=Math.max(0,target.hp/target.maxHp*100)+'%';
-      this.message([msg],()=>this.cont());
+      this.message([msg],()=>{ if(cb)cb(); else this.cont(); });
     }
   },
   // ボスを第二形態へ変身させる
