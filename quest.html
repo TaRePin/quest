@@ -842,7 +842,7 @@ const GEAR = {
   mithril:   { name:'ミスリルの よろい', slot:'armor',  def:58, price:6800, desc:'でんせつの きんぞくの よろい' },
   dangerswim:{ name:'あぶない みずぎ',   slot:'armor',  def:10, price:210000,charm:0.15,desc:'ぼうぎょ+10。ときどき てきを みりょうし こうどうふのうに する' },
   watergarb: { name:'みずの はごろも',   slot:'armor',  def:100,price:14000,desc:'みずの せいれいの はごろも。ぼうぎょ+100' },
-  mysticarmor:{ name:'しんぴの よろい',  slot:'armor',  def:150, special:true, decoy:true, desc:'ぼうぎょ+150。HPが はんぶんを きると ぶんしんを よびだす' },
+  mysticarmor:{ name:'しんぴの よろい',  slot:'armor',  def:150, special:true, decoy:true, desc:'ぼうぎょ+150。HPが はんぶんを きると ぶんしんを よびだす。20かい たおすと ＋1に しんか' },
   branch:    { name:'ひのきの えだ',    slot:'weapon', atk:10, cursed:true, special:true, desc:'こうげき10。なにかの しれんに つかう えだ' },
   almace:    { name:'アルマス',         slot:'weapon', atk:200, cursed:true, special:true, multi:true, lightDmg:50, desc:'こうげき+200。ときどき 3〜6れんげき＋ひかりダメージ50' },
 };
@@ -921,7 +921,7 @@ function freshPlayer(){
             departed:false, princessJoined:false, metKud:false, gotShip:false,
             abyssCleared:false, abyssClears:0,
             branchQuest:false, branchBattles:0, almaceDone:false,
-            hasElevator:false },
+            hasElevator:false, armorEvolved:false },
     quests:{},                        // サブクエスト進捗 {questId:{state,count}}
     seen:[], chests:[],
     loveGauge:0,                      // あいゲージ(0-300)。しきい値に達すると戦闘中あいのうた自動発動
@@ -931,7 +931,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='5.2';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='5.3';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -2491,6 +2491,8 @@ const game = {
     const clears=p.flags.abyssClears;
     // 2回撃破で しんぴのよろい入手（アップデート前に2回以上倒していたら即入手）
     const getsArmor = clears>=2 && !p.ownedGear.includes('mysticarmor');
+    // 20回撃破で しんぴのよろい+1進化
+    const getsEvolution = clears>=20 && !p.flags.armorEvolved;
     let lines;
     if(first){
       // 1回目：ステータス報酬＋次回予告
@@ -2516,6 +2518,14 @@ const game = {
         lines.push('アビス「やくそく どおり、わが ちからの よろいを さずけよう。」');
         lines.push('「しんぴの よろい」を てに いれた！');
         lines.push('しんぴの よろい：ぼうぎょ+150。HPが はんぶんを きると ぶんしんを よびだす。');
+      } else if(getsEvolution){
+        p.flags.armorEvolved=true;
+        // しんぴのよろい+1：名前変更・デコイ2体解放
+        lines.push('アビス「…なんじは もう じゅうぶんに つよい。しかし まだ さきがある。」');
+        lines.push('アビス「そのよろいに、わが ちからを そそごう。」');
+        lines.push('「しんぴの よろい」が「しんぴの よろい＋１」に しんかした！');
+        lines.push('ぶんしんが 2たい よびだせるように なった！');
+        lines.push('2たいめの ぶんしんは、なかまの かいふくと バフを かけつづける！');
       } else if(p.ownedGear.includes('mysticarmor')){
         lines.push('アビス「だが つぎは もっと つよく なって もどる。」');
       }
@@ -3293,10 +3303,16 @@ const game = {
     }
     if(this.allyQueue.length===0){ this.resolveTurn(); return; }
     this.curActor = this.allyQueue[0];
-    // デコイ（分身）は自動で攻撃する
+    // デコイ（分身）は自動で行動する
     if(this.curActor.isDecoy){
-      const tgt=this.aliveEnemies().sort((x,y)=>x.hp-y.hp)[0];
-      if(tgt) this.actions.push({ actor:this.curActor, type:'attack', target:tgt });
+      if(this.curActor.isDecoySupport){
+        // サポートデコイ：回復とバフをひたすらかける
+        this._decoySupport(this.curActor);
+      } else {
+        // 攻撃デコイ：最もHPの低い敵を攻撃
+        const tgt=this.aliveEnemies().sort((x,y)=>x.hp-y.hp)[0];
+        if(tgt) this.actions.push({ actor:this.curActor, type:'attack', target:tgt });
+      }
       this.allyQueue.shift(); this.inputNextAlly(); return;
     }
     // 眠っている味方は行動できない（起きる判定はターン解決時）
@@ -3989,10 +4005,10 @@ const game = {
       return;
     }
     let target;
-    // デコイ（分身）が生きていれば、敵の攻撃はデコイに集中する
-    const decoy=this.allies.find(a=>a.isDecoy && a.alive);
-    if(decoy){
-      target = (Math.random()<0.9) ? decoy : this.pick(this.targetableAllies());
+    // デコイ（分身）が生きていれば、敵の攻撃はデコイに集中する（2体あればランダムに振り分け）
+    const decoys=this.allies.filter(a=>a.isDecoy && a.alive);
+    if(decoys.length>0){
+      target = (Math.random()<0.9) ? this.pick(decoys) : this.pick(this.targetableAllies());
     } else if(this.provokeTurns>0 && this.provokeTarget && this.provokeTarget.alive){
       target = (Math.random()<0.85) ? this.provokeTarget : this.pick(this.targetableAllies());
     } else {
@@ -4055,18 +4071,67 @@ const game = {
   // デコイ（分身）を生成。勇者と同じステータス。回復不可・0で消滅・1戦闘1回
   spawnDecoy(hero){
     this._decoyUsed=true;
-    const decoy={ side:'ally', isHero:false, isDecoy:true, key:'decoy', name:'ゆうしゃの ぶんしん',
+    const evolved=this.p.flags.armorEvolved;
+    const armorName=evolved?'しんぴの よろい＋１':'しんぴの よろい';
+    // 1体目：攻撃型デコイ（従来通り）
+    const decoy1={ side:'ally', isHero:false, isDecoy:true, isDecoySupport:false,
+      key:'decoy', name:'ゆうしゃの ぶんしん',
       art:hero.art, lv:hero.lv, hp:hero.maxHp, maxHp:hero.maxHp, mp:0, maxMp:0,
       atk:hero.atk, def:hero.def, spd:hero.spd, spells:[], alive:true, status:'' };
-    this.allies.push(decoy);
+    this.allies.push(decoy1);
+    // 2体目：サポートデコイ（+1進化済みのみ）
+    if(evolved){
+      const decoy2={ side:'ally', isHero:false, isDecoy:true, isDecoySupport:true,
+        key:'decoy2', name:'ぶんしん（サポート）',
+        art:'✨', lv:hero.lv, hp:hero.maxHp, maxHp:hero.maxHp, mp:hero.maxMp, maxMp:hero.maxMp,
+        atk:1, def:hero.def, spd:hero.spd+2, spells:hero.spells.slice(), alive:true, status:'' };
+      this.allies.push(decoy2);
+    }
     audio.se('levelup'); this.renderParty();
-    this.message([
-      'しんぴの よろいが ひかりを はなった！',
-      'ゆうしゃの ぶんしんが あらわれた！',
-      'てきの こうげきは ぶんしんに あつまる！（かいふくは できない）'
-    ],()=>this.cont());
+    const msgs=[`${armorName}が ひかりを はなった！`, 'ゆうしゃの ぶんしんが あらわれた！'];
+    if(evolved) msgs.push('サポートぶんしんが なかまを かいふく・バフし つづける！');
+    msgs.push('てきの こうげきは ぶんしんに あつまる！（かいふくは できない）');
+    this.message(msgs, ()=>this.cont());
   },
 
+  // サポートデコイの行動：回復・バフをひたすらかける
+  _decoySupport(actor){
+    const healable=this.healableAllies();
+    // 1) 毒にかかっている味方がいればどくけし
+    const poisoned=healable.find(a=>a.status==='poison');
+    if(poisoned && actor.spells.includes('antidote') && actor.mp>=SPELLS.antidote.mp){
+      this.actions.push({ actor, type:'spell', spell:'antidote' }); return;
+    }
+    // 2) HP40%以下の重傷者がいれば最強回復
+    const hurt=healable.find(a=>a.hp<=a.maxHp*0.4);
+    const healSpells=actor.spells.filter(s=>SPELLS[s]?.type==='heal')
+      .sort((a,b)=>(SPELLS[b].pct||0)-(SPELLS[a].pct||0)||(SPELLS[b].amt||0)-(SPELLS[a].amt||0));
+    const bestHeal=healSpells.find(s=>actor.mp>=SPELLS[s].mp);
+    if(hurt && bestHeal){ this.actions.push({ actor, type:'spell', spell:bestHeal }); return; }
+    // 3) バフが切れていれば付与（ファランクス→バーサク→プロテスの優先順）
+    const buffOrder=['phalanx','strength','protect'];
+    for(const s of buffOrder){
+      if(!actor.spells.includes(s)) continue;
+      if(actor.mp<SPELLS[s].mp) continue;
+      // すでに効果中なら重ねない
+      if(s==='phalanx' && this._phalanxTurns>0) continue;
+      if(s==='strength'){
+        const h=this.allies.find(a=>a.isHero);
+        if(h && h._strengthTurns>0) continue;
+      }
+      if(s==='protect'){
+        const h=this.allies.find(a=>a.isHero);
+        if(h && (h._protectTurns||0)>0) continue;
+      }
+      this.actions.push({ actor, type:'spell', spell:s }); return;
+    }
+    // 4) 軽傷の回復（HP80%以下）
+    const mild=healable.find(a=>a.hp<=a.maxHp*0.8);
+    if(mild && bestHeal){ this.actions.push({ actor, type:'spell', spell:bestHeal }); return; }
+    // 5) 何もすることがなければ通常攻撃（MP温存のため最弱攻撃）
+    const tgt=this.aliveEnemies().sort((x,y)=>x.hp-y.hp)[0];
+    if(tgt) this.actions.push({ actor, type:'attack', target:tgt });
+  },
   damageEnemy(target,dmg,crit,msg){
     // 先に「今の」対象ノードへ演出を乗せる（renderで作り直す前に）
     audio.se('hit');
