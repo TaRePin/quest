@@ -921,7 +921,7 @@ function freshPlayer(){
             departed:false, princessJoined:false, metKud:false, gotShip:false,
             abyssCleared:false, abyssClears:0,
             branchQuest:false, branchBattles:0, almaceDone:false,
-            hasElevator:false, armorEvolved:false },
+            hasElevator:false, armorEvolved:false, armorLevel:0 },
     quests:{},                        // サブクエスト進捗 {questId:{state,count}}
     seen:[], chests:[],
     loveGauge:0,                      // あいゲージ(0-300)。しきい値に達すると戦闘中あいのうた自動発動
@@ -931,7 +931,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='5.3';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='5.4';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -2489,13 +2489,13 @@ const game = {
     p.flags.abyssCleared=true;
     p.flags.abyssClears=(p.flags.abyssClears||0)+1;
     const clears=p.flags.abyssClears;
-    // 2回撃破で しんぴのよろい入手（アップデート前に2回以上倒していたら即入手）
     const getsArmor = clears>=2 && !p.ownedGear.includes('mysticarmor');
-    // 20回撃破で しんぴのよろい+1進化
-    const getsEvolution = clears>=20 && !p.flags.armorEvolved;
+    // 進化段階：10回単位（20,30,40,50...回）
+    const newLevel = p.ownedGear.includes('mysticarmor') ? Math.floor((clears-10)/10) : 0;
+    const curLevel = p.flags.armorLevel||0;
+    const getsEvolution = newLevel > curLevel && p.ownedGear.includes('mysticarmor');
     let lines;
     if(first){
-      // 1回目：ステータス報酬＋次回予告
       p.maxHp+=50; p.hp=p.maxHp; p.baseAtk+=10; p.baseDef+=10;
       lines=[
         'りゅうおう アビスは、しずかに ちからを うしなって いった──',
@@ -2506,7 +2506,6 @@ const game = {
         'アビス「なんど でも よみがえる。さらに つよく なって な。」',
       ];
     } else {
-      // 2回目以降
       p.maxHp+=20; p.hp=p.maxHp; p.baseAtk+=5; p.baseDef+=5;
       lines=[
         `さらに つよき アビス（${clears}かいめ）を うちやぶった！`,
@@ -2514,20 +2513,32 @@ const game = {
         'さいだいHP+20、こうげき・ぼうぎょ+5！',
       ];
       if(getsArmor){
-        p.ownedGear.push('mysticarmor');
+        p.ownedGear.push('mysticarmor'); p.flags.armorLevel=0;
         lines.push('アビス「やくそく どおり、わが ちからの よろいを さずけよう。」');
         lines.push('「しんぴの よろい」を てに いれた！');
         lines.push('しんぴの よろい：ぼうぎょ+150。HPが はんぶんを きると ぶんしんを よびだす。');
       } else if(getsEvolution){
-        p.flags.armorEvolved=true;
-        // しんぴのよろい+1：名前変更・デコイ2体解放
-        lines.push('アビス「…なんじは もう じゅうぶんに つよい。しかし まだ さきがある。」');
-        lines.push('アビス「そのよろいに、わが ちからを そそごう。」');
-        lines.push('「しんぴの よろい」が「しんぴの よろい＋１」に しんかした！');
-        lines.push('ぶんしんが 2たい よびだせるように なった！');
-        lines.push('2たいめの ぶんしんは、なかまの かいふくと バフを かけつづける！');
+        const lv=newLevel; p.flags.armorLevel=lv; p.flags.armorEvolved=true;
+        const lvName=`しんぴの よろい＋${lv}`;
+        lines.push(`アビス「…なんじは もう じゅうぶんに つよい。さらに ちからを そそごう。」`);
+        lines.push(`「しんぴの よろい」が「${lvName}」に しんかした！`);
+        if(lv===1){
+          lines.push('ぶんしんが 2たい よびだせるように なった！');
+          lines.push('2たいめの ぶんしんは、なかまの かいふくと バフを かけつづける！');
+        } else if(lv===2){
+          lines.push('3たいめのぶんしん「エルフのせいれい」が よびだせるように なった！');
+          lines.push('せいれいは せかいじゅの ちからで てきに かならず ゆうしゃの2ばいのダメージを あたえる！');
+        } else if(lv===3){
+          lines.push('4たいめのぶんしん「こだいの もりびと」が よびだせるように なった！');
+          lines.push('もりびとは てきに こうげきしつつ なかまを まもる ぼうへきを はる！');
+        } else {
+          lines.push(`ぶんしん${lv+1}たいめが つよく なった！（よろい＋${lv}）`);
+        }
       } else if(p.ownedGear.includes('mysticarmor')){
-        lines.push('アビス「だが つぎは もっと つよく なって もどる。」');
+        // 次の進化のヒント
+        const nextAt = 20 + (curLevel+1)*10;
+        if(clears < nextAt) lines.push(`アビス「${nextAt-clears}かい たおせば よろいが さらに つよくなるぞ。」`);
+        else lines.push('アビス「だが つぎは もっと つよく なって もどる。」');
       }
       lines.push(`これまでの げきはかいすう：${clears}かい`);
     }
@@ -3306,10 +3317,15 @@ const game = {
     // デコイ（分身）は自動で行動する
     if(this.curActor.isDecoy){
       if(this.curActor.isDecoySupport){
-        // サポートデコイ：回復とバフをひたすらかける
         this._decoySupport(this.curActor);
+      } else if(this.curActor.isDecoyElf){
+        // エルフの精霊：世界樹の力で勇者の2倍ダメージ確定
+        const tgt=this.aliveEnemies().sort((x,y)=>x.hp-y.hp)[0];
+        if(tgt) this.actions.push({ actor:this.curActor, type:'elfSpirit', target:tgt });
+      } else if(this.curActor.isDecoyGuard){
+        // 古の守護者：攻撃しつつ仲間にストンスキンをかける
+        this._decoyGuard(this.curActor);
       } else {
-        // 攻撃デコイ：最もHPの低い敵を攻撃
         const tgt=this.aliveEnemies().sort((x,y)=>x.hp-y.hp)[0];
         if(tgt) this.actions.push({ actor:this.curActor, type:'attack', target:tgt });
       }
@@ -3726,6 +3742,7 @@ const game = {
     if(act.type==='flee'){ this.doFlee(act); return; }
     if(act.type==='enemy'){ this.doEnemyAction(actor); return; }
     if(act.type==='attack'){ this.doAllyAttack(actor, act.target); return; }
+    if(act.type==='elfSpirit'){ this.doElfSpirit(actor, act.target); return; }
     if(act.type==='spell'){ this.doAllySpell(actor, act.spell, act.target); return; }
     if(act.type==='item'){ this.doAllyItem(actor, act.item); return; }
     if(act.type==='skill'){ this.doAllySkill(actor, act.skill); return; }
@@ -4005,10 +4022,15 @@ const game = {
       return;
     }
     let target;
-    // デコイ（分身）が生きていれば、敵の攻撃はデコイに集中する（2体あればランダムに振り分け）
-    const decoys=this.allies.filter(a=>a.isDecoy && a.alive);
+    // デコイが生きていれば優先度順にターゲット（1体目90%→2体目70%→3体目50%→4体目40%）
+    const decoys=this.allies.filter(a=>a.isDecoy && a.alive)
+      .sort((a,b)=>(b._targetPriority||0)-(a._targetPriority||0));
     if(decoys.length>0){
-      target = (Math.random()<0.9) ? this.pick(decoys) : this.pick(this.targetableAllies());
+      let target_=null;
+      for(const d of decoys){
+        if(Math.random()<(d._targetPriority||0.5)){ target_=d; break; }
+      }
+      target = target_ || this.pick(this.targetableAllies());
     } else if(this.provokeTurns>0 && this.provokeTarget && this.provokeTarget.alive){
       target = (Math.random()<0.85) ? this.provokeTarget : this.pick(this.targetableAllies());
     } else {
@@ -4071,29 +4093,91 @@ const game = {
   // デコイ（分身）を生成。勇者と同じステータス。回復不可・0で消滅・1戦闘1回
   spawnDecoy(hero){
     this._decoyUsed=true;
-    const evolved=this.p.flags.armorEvolved;
-    const armorName=evolved?'しんぴの よろい＋１':'しんぴの よろい';
-    // 1体目：攻撃型デコイ（従来通り）
-    const decoy1={ side:'ally', isHero:false, isDecoy:true, isDecoySupport:false,
+    const lv=this.p.flags.armorLevel||0;
+    const lvName=lv>0?`しんぴの よろい＋${lv}`:'しんぴの よろい';
+    const msgs=[`${lvName}が ひかりを はなった！`,'ゆうしゃの ぶんしんが あらわれた！'];
+
+    // ── 1体目：攻撃型デコイ（常時） ──
+    this.allies.push({ side:'ally', isHero:false, isDecoy:true, isDecoySupport:false, isDecoyElf:false, isDecoyGuard:false,
       key:'decoy', name:'ゆうしゃの ぶんしん',
       art:hero.art, lv:hero.lv, hp:hero.maxHp, maxHp:hero.maxHp, mp:0, maxMp:0,
-      atk:hero.atk, def:hero.def, spd:hero.spd, spells:[], alive:true, status:'' };
-    this.allies.push(decoy1);
-    // 2体目：サポートデコイ（+1進化済みのみ）
-    if(evolved){
-      const decoy2={ side:'ally', isHero:false, isDecoy:true, isDecoySupport:true,
+      atk:hero.atk, def:hero.def, spd:hero.spd, spells:[], alive:true, status:'', _targetPriority:0.90 });
+
+    // ── 2体目：サポートデコイ（+1以上） ──
+    if(lv>=1){
+      this.allies.push({ side:'ally', isHero:false, isDecoy:true, isDecoySupport:true, isDecoyElf:false, isDecoyGuard:false,
         key:'decoy2', name:'ぶんしん（サポート）',
         art:'✨', lv:hero.lv, hp:hero.maxHp, maxHp:hero.maxHp, mp:hero.maxMp, maxMp:hero.maxMp,
-        atk:1, def:hero.def, spd:hero.spd+2, spells:hero.spells.slice(), alive:true, status:'' };
-      this.allies.push(decoy2);
+        atk:1, def:hero.def, spd:hero.spd+2, spells:hero.spells.slice(), alive:true, status:'', _targetPriority:0.70 });
+      msgs.push('サポートぶんしんが なかまを かいふく・バフし つづける！');
     }
+
+    // ── 3体目：エルフの精霊（+2以上） ──
+    if(lv>=2){
+      this.allies.push({ side:'ally', isHero:false, isDecoy:true, isDecoySupport:false, isDecoyElf:true, isDecoyGuard:false,
+        key:'decoy3', name:'エルフの せいれい',
+        art:'🧚', lv:hero.lv, hp:hero.maxHp*1.2|0, maxHp:hero.maxHp*1.2|0, mp:hero.maxMp, maxMp:hero.maxMp,
+        atk:hero.atk*2, def:hero.def, spd:hero.spd+4, spells:[], alive:true, status:'', _targetPriority:0.50 });
+      msgs.push('🌳 エルフのせいれいが せかいじゅの ちからを かりて あらわれた！');
+      msgs.push('せいれいは てきに ゆうしゃの 2ばいの ダメージを かならず あたえる！');
+    }
+
+    // ── 4体目：古の守護者（+3以上） ──
+    if(lv>=3){
+      this.allies.push({ side:'ally', isHero:false, isDecoy:true, isDecoySupport:false, isDecoyElf:false, isDecoyGuard:true,
+        key:'decoy4', name:'こだいの もりびと',
+        art:'🌲', lv:hero.lv, hp:hero.maxHp*1.5|0, maxHp:hero.maxHp*1.5|0, mp:hero.maxMp, maxMp:hero.maxMp,
+        atk:hero.atk*0.8|0, def:hero.def*2|0, spd:hero.spd-2, spells:hero.spells.slice(), alive:true, status:'', _targetPriority:0.40 });
+      msgs.push('🌲 こだいの もりびとが もりの ちからで めざめた！なかまを まもる ぼうへきを はる！');
+    }
+
+    // +4以上：既存デコイのステータス強化
+    if(lv>=4){
+      const bonus=lv-3;
+      this.allies.filter(a=>a.isDecoy).forEach(d=>{
+        d.hp+=hero.maxHp*(bonus*0.2)|0; d.maxHp=d.hp;
+        d.atk+=hero.atk*(bonus*0.1)|0; d.def+=hero.def*(bonus*0.1)|0;
+      });
+      msgs.push(`よろい＋${lv}の ちからで ぶんしんたちが さらに つよくなった！`);
+    }
+
+    msgs.push('てきの こうげきは ぶんしんたちに あつまる！（かいふくは できない）');
     audio.se('levelup'); this.renderParty();
-    const msgs=[`${armorName}が ひかりを はなった！`, 'ゆうしゃの ぶんしんが あらわれた！'];
-    if(evolved) msgs.push('サポートぶんしんが なかまを かいふく・バフし つづける！');
-    msgs.push('てきの こうげきは ぶんしんに あつまる！（かいふくは できない）');
     this.message(msgs, ()=>this.cont());
   },
 
+  // エルフの精霊：世界樹の力で勇者の2倍ダメージ確定（演出付き）
+  doElfSpirit(actor, target){
+    if(!target||!target.alive){ target=this.aliveEnemies()[0]; }
+    if(!target){ this.cont(); return; }
+    const hero=this.allies.find(a=>a.isHero);
+    const dmg=Math.max(1, (hero?hero.atk:actor.atk)*2 - Math.floor(target.def*0.3));
+    // 世界樹の演出：画面に緑のエフェクト
+    const L=this.fxLayer(); if(L){
+      for(let i=0;i<24;i++){
+        const p=document.createElement('div');
+        p.style.cssText=`position:absolute;width:${6+Math.random()*10}px;height:${6+Math.random()*10}px;
+          border-radius:50%;background:hsl(${100+Math.random()*40},90%,${50+Math.random()*30}%);
+          left:${Math.random()*100}%;top:${Math.random()*70}%;
+          animation:fxSpark .7s ease-out forwards;animation-delay:${i*30}ms;
+          box-shadow:0 0 10px #00ff80;`;
+        L.appendChild(p); setTimeout(()=>p.remove(),900+i*30);
+      }
+    }
+    audio.se('levelup'); this.fxFlameOn(target.slot);
+    this.damageEnemy(target, dmg, false,
+      `🌳 エルフのせいれいが せかいじゅのちからを よびだした！\n${target.name}に ${dmg}の ダメージ！（ぼうぎょ むし・かならずあたる）`);
+  },
+  // 古の守護者：攻撃＋味方にストンスキン付与
+  _decoyGuard(actor){
+    const tgt=this.aliveEnemies().sort((x,y)=>x.hp-y.hp)[0];
+    // 仲間のストンスキンが切れていれば付与を優先
+    const hero=this.allies.find(a=>a.isHero);
+    if(hero && (hero._stoneskinWall||0)<=0 && actor.mp>=SPELLS.stoneskin.mp){
+      this.actions.push({ actor, type:'spell', spell:'stoneskin' }); return;
+    }
+    if(tgt) this.actions.push({ actor, type:'attack', target:tgt });
+  },
   // サポートデコイの行動：回復・バフをひたすらかける
   _decoySupport(actor){
     const healable=this.healableAllies();
