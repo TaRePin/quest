@@ -846,6 +846,7 @@ const GEAR = {
   mysticarmor:{ name:'しんぴの よろい',  slot:'armor',  def:150, special:true, decoy:true, desc:'ぼうぎょ+150。HPが はんぶんを きると ぶんしんを よびだす。20かい たおすと ＋1に しんか' },
   branch:    { name:'ひのきの えだ',    slot:'weapon', atk:10, cursed:true, special:true, desc:'こうげき10。なにかの しれんに つかう えだ' },
   almace:    { name:'アルマス',         slot:'weapon', atk:200, cursed:true, special:true, multi:true, lightDmg:50, desc:'こうげき+200。ときどき 3〜6れんげき＋ひかりダメージ50' },
+  ultimaweapon:{ name:'アルテマウェポン', slot:'weapon', atk:0, special:true, ultima:true, desc:'こうげきりょくは レベルの2ばい。ときどき 8〜16れんげき！れんげきごとに MP（または デコイのHP）を しょうひする' },
 };
 
 const SHOPS = {
@@ -932,7 +933,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='5.6';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='5.7';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -2495,6 +2496,8 @@ const game = {
     const newLevel = p.ownedGear.includes('mysticarmor') ? Math.floor((clears-10)/10) : 0;
     const curLevel = p.flags.armorLevel||0;
     const getsEvolution = newLevel > curLevel && p.ownedGear.includes('mysticarmor');
+    // 50回撃破でアルテマウェポン入手（既に50回以上倒している場合は次の勝利で入手）
+    const getsUltimaWeapon = clears>=50 && !p.ownedGear.includes('ultimaweapon');
     let lines;
     if(first){
       p.maxHp+=50; p.hp=p.maxHp; p.baseAtk+=10; p.baseDef+=10;
@@ -2540,6 +2543,15 @@ const game = {
         const nextAt = 10 + (curLevel+1)*10;
         if(clears < nextAt) lines.push(`アビス「${nextAt-clears}かい たおせば よろいが さらに つよくなるぞ。」`);
         else lines.push('アビス「だが つぎは もっと つよく なって もどる。」');
+      }
+      // アルテマウェポン入手（よろい進化と別枠で常に判定）
+      if(getsUltimaWeapon){
+        p.ownedGear.push('ultimaweapon');
+        lines.push('アビス「…もう なんども われを たおした。」');
+        lines.push('アビス「これを わたそう。せかいの ことわりを やどす けん「アルテマウェポン」だ。」');
+        lines.push('「アルテマウェポン」を てに いれた！');
+        lines.push('こうげきりょくは レベルの2ばい。ときどき 8〜16れんげき！');
+        lines.push('れんげきの たびに MPを しょうひする（デコイの HP でも だいよう できる）。');
       }
       lines.push(`これまでの げきはかいすう：${clears}かい`);
     }
@@ -3134,7 +3146,11 @@ const game = {
        - 各ユニットに side('ally'/'enemy'), done(行動済みフラグ), alive を持たせる
        - プレイヤーは生存味方ごとにコマンド入力→順に解決
   ====================================================================== */
-  weaponAtk(){ return GEAR[this.p.equip.weapon]?.atk||0; },
+  weaponAtk(){
+    const w=this.p.equip.weapon;
+    if(GEAR[w]?.ultima) return this.p.lv*2; // アルテマウェポン：攻撃力=レベルの200%
+    return GEAR[w]?.atk||0;
+  },
   armorDef(){ return GEAR[this.p.equip.armor]?.def||0; },
   atk(){ return this.p.baseAtk + this.p.lv*3 + this.weaponAtk(); },
   def(){ return this.p.baseDef + this.p.lv*2 + this.armorDef(); },
@@ -3491,6 +3507,7 @@ const game = {
       'やさしい しらべが せんじょうに ひびきわたる──',
       `ゆうしゃは 「あい」に めざめた！（${turns}ターン）`,
       'さいだいHPが 100 あがり、HPが ぜんかいふく！',
+      'MPも ぜんかいふく した！',
       buffAtk ? 'こうげきりょくが 100 あがった！' : 'ぼうぎょりょくが 100 あがった！'
     ];
     if(lvl>=200) lines.push('あいの ちからが たかまり、こうかじかんが のびた！');
@@ -3501,7 +3518,7 @@ const game = {
       lines.push('💗さいだいの あい！ ぶきの ちからが かくせいし こうげき+20！');
       lines.push('ぶきの とくしゅこうかが はんてんし、はつどう しやすく なった！');
     }
-    hero.hp=hero.maxHp; this.loveTurns=turns;
+    hero.hp=hero.maxHp; hero.mp=hero.maxMp; this.loveTurns=turns;
     // あいのうたの追加効果：全味方の状態異常を回復
     const cured=[];
     this.allies.forEach(a=>{
@@ -3767,6 +3784,11 @@ const game = {
   doAllyAttack(actor, target){
     if(!target.alive) target=this.aliveEnemies()[0]; // 対象が既に倒れていたら振り直し
     if(!target){ this.nextAction(); return; }
+    // アルテマウェポン装備時：専用の多段攻撃処理
+    if(actor.isHero && GEAR[this.p.equip.weapon]?.ultima){
+      this.doUltimaAttack(actor, target);
+      return;
+    }
     // 勇者がブルトガング/アルマス装備なら多段攻撃（攻撃ごとに味方HP回復）
     if(actor.isHero && (this.p.equip.weapon==='balmung'||this.p.equip.weapon==='almace')){
       const hits=this.rollBalmungHits();
@@ -3833,6 +3855,89 @@ const game = {
     return 26+Math.floor(Math.random()*15);             // 26〜40
   },
   // ブルトガングの多段攻撃を1ヒットずつ処理（ダメージ→回復 を回数分）
+  // アルテマウェポン専用攻撃：時々8〜16連撃。1撃ごとに勇者MP（不足ならデコイHP）を消費
+  doUltimaAttack(actor, target){
+    if(!target||!target.alive) target=this.aliveEnemies()[0];
+    if(!target){ this.cont(); return; }
+    const mpCostPerHit=Math.max(1, Math.ceil(this.p.lv*0.2)); // レベルの20%
+    const hasResource = ()=>{
+      if(actor.mp>=mpCostPerHit) return true;
+      const decoy=this.allies.find(d=>d.isDecoy && d.alive && d.hp>=mpCostPerHit);
+      return !!decoy;
+    };
+    // 連撃が発動するか（30%）。発動条件：最初の1撃分のリソースがあること
+    const burstReady = hasResource();
+    const hits = (burstReady && Math.random()<0.30) ? this.randi(8,16) : 1;
+    this._ultimaHit(actor, target, hits, 1, mpCostPerHit);
+  },
+  _ultimaHit(actor, target, hits, n, mpCostPerHit){
+    if(this.aliveEnemies().length===0){ this.cont(); return; }
+    if(!target||!target.alive) target=this.aliveEnemies()[0];
+    if(!target){ this.cont(); return; }
+    // リソース消費判定：勇者MP優先→不足ならデコイHPで代替→両方不足なら攻撃力10固定
+    let resourceLine='';
+    let useWeak=false;
+    if(actor.mp>=mpCostPerHit){
+      actor.mp-=mpCostPerHit;
+    } else {
+      const decoy=this.allies.find(d=>d.isDecoy && d.alive && d.hp>=mpCostPerHit);
+      if(decoy){
+        decoy.hp-=mpCostPerHit;
+        resourceLine=`\n（${decoy.name}の HPを ${mpCostPerHit} しょうひ）`;
+        if(decoy.hp<=0){ decoy.alive=false; resourceLine+=`\n${decoy.name}は きえた…`; }
+      } else {
+        useWeak=true; // 勇者MPもデコイHPも足りない→攻撃力10固定
+      }
+    }
+    const head = (n===1) ? `${actor.name}の こうげき！（アルテマウェポン）${hits>1?`（${hits}れんげき！）`:''}\n` : '';
+    const crit=Math.random()<this.critChance(actor);
+    let dmg;
+    if(useWeak){
+      dmg=10; // MP・デコイHPともに不足→攻撃力10固定
+    } else {
+      dmg=Math.max(1, actor.atk-target.def+this.randi(-2,2));
+      if(crit) dmg=Math.round(dmg*1.8);
+      if(actor._strengthMult>1) dmg=Math.round(dmg*actor._strengthMult);
+      if(this.furyActive(actor)){ dmg=Math.round(dmg*2); if(n===1) this.fxFuryOn(); }
+    }
+    // 青い発光エフェクト
+    this.fxUltimaFlash();
+    audio.se('hit'); this.flashEnemyOn(target.slot); this.fxTextOn('enemy',target.slot,dmg,crit?'crit':'');
+    target.hp-=dmg;
+    if(target.hp<=0 && target.form2 && !target.transformed){
+      this.transformBoss(target, `${head}${n}かいめ：${target.name}に ${dmg}の ダメージ！${resourceLine}`); return;
+    }
+    let killed=false;
+    if(target.hp<=0){ target.alive=false; killed=true; this.questProgress(target.key);
+      const node=this.enemyNode(target.slot);
+      if(node){ node.classList.add('dead'); const bar=node.querySelector('.b-uhp i'); if(bar) bar.style.width='0%'; }
+    } else {
+      const node=this.enemyNode(target.slot);
+      const bar=node&&node.querySelector('.b-uhp i'); if(bar) bar.style.width=Math.max(0,target.hp/target.maxHp*100)+'%';
+    }
+    this.renderParty();
+    const weakLine=useWeak?'\n（ちからが でない…こうげきりょく10）':'';
+    const dmgLine=`${head}${n}かいめ：${target.name}に ${dmg}の ダメージ！${crit?'（かいしん！）':''}${killed?`\n${target.name}を たおした！`:''}${resourceLine}${weakLine}`;
+    this.message([dmgLine],()=>{
+      // 次の敵がいない・リソースが完全に尽きたら終了
+      if(n<hits && this.aliveEnemies().length>0 && !(useWeak && actor.mp<mpCostPerHit && !this.allies.some(d=>d.isDecoy&&d.alive&&d.hp>=mpCostPerHit))){
+        this.renderEnemies(); this._ultimaHit(actor, target, hits, n+1, mpCostPerHit);
+      } else { this.renderEnemies(); this.cont(); }
+    });
+  },
+  // アルテマウェポンの青い発光エフェクト
+  fxUltimaFlash(){
+    const L=this.fxLayer(); if(!L) return;
+    for(let i=0;i<10;i++){
+      const p=document.createElement('div');
+      p.style.cssText=`position:absolute;width:${5+Math.random()*8}px;height:${5+Math.random()*8}px;
+        border-radius:50%;background:#3a8fff;
+        left:${30+Math.random()*40}%;top:${20+Math.random()*40}%;
+        animation:fxSpark .4s ease-out forwards;animation-delay:${i*15}ms;
+        box-shadow:0 0 12px #4fb0ff,0 0 24px #2060ff;`;
+      L.appendChild(p); setTimeout(()=>p.remove(),500+i*15);
+    }
+  },
   doBalmungAttack(actor, target, hits, n){
     if(this.aliveEnemies().length===0){ this.cont(); return; }
     if(!target||!target.alive){ target=this.aliveEnemies()[0]; }
