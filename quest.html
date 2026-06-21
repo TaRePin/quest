@@ -933,7 +933,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='6.0';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='6.1';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -3002,7 +3002,9 @@ const game = {
     }
     const owned=p.ownedGear.filter(g=>GEAR[g].slot===slot);
     this.cmdItems=owned.map(g=>{
-      const ge=GEAR[g], val=slot==='weapon'?`こうげき+${ge.atk}`:`しゅび+${ge.def}`;
+      const ge=GEAR[g];
+      const atkVal = ge.ultima ? (p.lv*2) : ge.atk; // アルテマウェポンはレベル×2を表示
+      const val=slot==='weapon'?`こうげき+${atkVal}`:`しゅび+${ge.def}`;
       const cur=p.equip[slot]===g?'▶':'　';
       return {label:`${cur}${ge.name} ${val}`,act:()=>this.doEquip(slot,g)};
     });
