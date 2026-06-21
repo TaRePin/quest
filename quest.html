@@ -933,7 +933,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='5.9';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='6.0';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -2498,6 +2498,17 @@ const game = {
     const getsEvolution = newLevel > curLevel && p.ownedGear.includes('mysticarmor');
     // 50回撃破でアルテマウェポン入手（既に50回以上倒している場合は次の勝利で入手）
     const getsUltimaWeapon = clears>=50 && !p.ownedGear.includes('ultimaweapon');
+    // 呪い解除救済：firstかどうかに関わらず必ずチェック（バージョンアップ間で取り残された呪いを必ず解く）
+    let rescueLines=[];
+    if(p.ownedGear.includes('ultimaweapon') && p.flags.cursed && GEAR[p.equip.weapon]?.cursed){
+      p.flags.cursed=false;
+      const wn=GEAR[p.equip.weapon].name;
+      rescueLines=[
+        `アビス「おお…まだ その ${wn}の のろいが とけて いなかったか。」`,
+        'アビス「すまぬ すまぬ。いま すぐ はらって やろう。」',
+        `${wn}の のろいが とけた！ そうびを かえられるように なった。`,
+      ];
+    }
     let lines;
     if(first){
       p.maxHp+=50; p.hp=p.maxHp; p.baseAtk+=10; p.baseDef+=10;
@@ -2508,6 +2519,7 @@ const game = {
         'アビス「……だが これで おわりでは ない。」',
         'アビス「もう いちど われを たおせるなら、しんの ちからを さずけよう。」',
         'アビス「なんど でも よみがえる。さらに つよく なって な。」',
+        ...rescueLines,
       ];
     } else {
       p.maxHp+=20; p.hp=p.maxHp; p.baseAtk+=5; p.baseDef+=5;
@@ -2560,13 +2572,8 @@ const game = {
           lines.push(`アビス「その ${wn}に かけられた のろいは、われが はらって やろう。」`);
           lines.push(`${wn}の のろいが とけた！ そうびを かえられるように なった。`);
         }
-      } else if(p.ownedGear.includes('ultimaweapon') && p.flags.cursed && GEAR[p.equip.weapon]?.cursed){
-        // 既にアルテマウェポンを持っているのに呪いが解けていない既存セーブの救済
-        p.flags.cursed=false;
-        const wn=GEAR[p.equip.weapon].name;
-        lines.push(`アビス「おお…まだ その ${wn}の のろいが とけて いなかったか。」`);
-        lines.push('アビス「すまぬ すまぬ。いま すぐ はらって やろう。」');
-        lines.push(`${wn}の のろいが とけた！ そうびを かえられるように なった。`);
+      } else {
+        lines.push(...rescueLines);
       }
       lines.push(`これまでの げきはかいすう：${clears}かい`);
     }
