@@ -933,7 +933,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='5.7';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='5.8';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -2552,6 +2552,14 @@ const game = {
         lines.push('「アルテマウェポン」を てに いれた！');
         lines.push('こうげきりょくは レベルの2ばい。ときどき 8〜16れんげき！');
         lines.push('れんげきの たびに MPを しょうひする（デコイの HP でも だいよう できる）。');
+        // 呪われた武器を装備中なら、ここで呪いを解いてもらう（アルテマウェポンへの持ち替えを可能にする）
+        const curWeapon=p.equip.weapon;
+        if(GEAR[curWeapon]?.cursed){
+          p.flags.cursed=false;
+          const wn=GEAR[curWeapon].name;
+          lines.push(`アビス「その ${wn}に かけられた のろいは、われが はらって やろう。」`);
+          lines.push(`${wn}の のろいが とけた！ そうびを かえられるように なった。`);
+        }
       }
       lines.push(`これまでの げきはかいすう：${clears}かい`);
     }
@@ -2973,8 +2981,8 @@ const game = {
   },
   equipSlotMenu(slot){
     const p=this.p;
-    // 呪われた武器を装備中は外せない
-    if(slot==='weapon' && GEAR[p.equip.weapon]?.cursed){
+    // 呪われた武器を装備中は外せない（裏ボスが解呪すると p.flags.cursed=false になり外せる）
+    if(slot==='weapon' && GEAR[p.equip.weapon]?.cursed && p.flags.cursed){
       const wn=GEAR[p.equip.weapon].name;
       this.message([`${wn}は からだから はなれない…！`],()=>this.equipMenu()); return;
     }
