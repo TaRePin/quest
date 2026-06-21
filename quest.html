@@ -846,7 +846,7 @@ const GEAR = {
   mysticarmor:{ name:'しんぴの よろい',  slot:'armor',  def:150, special:true, decoy:true, desc:'ぼうぎょ+150。HPが はんぶんを きると ぶんしんを よびだす。20かい たおすと ＋1に しんか' },
   branch:    { name:'ひのきの えだ',    slot:'weapon', atk:10, cursed:true, special:true, desc:'こうげき10。なにかの しれんに つかう えだ' },
   almace:    { name:'アルマス',         slot:'weapon', atk:200, cursed:true, special:true, multi:true, lightDmg:50, desc:'こうげき+200。ときどき 3〜6れんげき＋ひかりダメージ50' },
-  ultimaweapon:{ name:'アルテマウェポン', slot:'weapon', atk:0, special:true, ultima:true, desc:'こうげきりょくは レベルの2ばい。ときどき 8〜16れんげき！れんげきごとに MP（または デコイのHP）を しょうひする' },
+  ultimaweapon:{ name:'アルテマウェポン', slot:'weapon', atk:0, special:true, ultima:true, desc:'こうげきりょくの かんねんなし。レベルと どうすうの こていダメージ。さいだい20れんげき（1かいごとに MPまたは ぶんしんHPを しょうひ）。アルテマウェーイ100こで しんか' },
 };
 
 const SHOPS = {
@@ -933,7 +933,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='6.1';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='6.2';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -1430,6 +1430,20 @@ const game = {
     p._statPatched=true;
     this.save();
   },
+  // 既存セーブのアルテマウェーイ数を撃破回数から補正（仕様変更：旧バージョンでは個数を記録していなかったため）
+  _patchUltimaWeii(){
+    const p=this.p; if(!p||p._weiiPatched) return;
+    p._weiiPatched=true;
+    const clears=p.flags.abyssClears||0;
+    // 既に持っているアルテマウェーイ数を、撃破回数を下回らないように補正
+    const current=p.flags.ultimaWeii||0;
+    if(p.ownedGear.includes('ultimaweapon') && clears>current){
+      p.flags.ultimaWeii=clears;
+      // 100個以上なら強化済みにする
+      if(p.flags.ultimaWeii>=100) p.flags.ultimaWeaponEvolved=true;
+    }
+    this.save();
+  },
   // アップデート確認：サーバーの version.json を読み、手元より新しければシークバー演出→再読み込み
   async checkUpdate(){
     const msg=document.getElementById('updateMsg');
@@ -1498,6 +1512,7 @@ const game = {
       this.p=this.migrateSave(saved);
       this.p.status='';
       this._patchStat();
+      this._patchUltimaWeii();
       // レベルに達しているのに未習得の呪文を一括付与（新呪文追加後のアップデート対応）
       this._patchSpells();
       // 塔でセーブしていた場合：ランダム生成マップを再生成して入口から復帰
@@ -2496,8 +2511,6 @@ const game = {
     const newLevel = p.ownedGear.includes('mysticarmor') ? Math.floor((clears-10)/10) : 0;
     const curLevel = p.flags.armorLevel||0;
     const getsEvolution = newLevel > curLevel && p.ownedGear.includes('mysticarmor');
-    // 50回撃破でアルテマウェポン入手（既に50回以上倒している場合は次の勝利で入手）
-    const getsUltimaWeapon = clears>=50 && !p.ownedGear.includes('ultimaweapon');
     // 呪い解除救済：firstかどうかに関わらず必ずチェック（バージョンアップ間で取り残された呪いを必ず解く）
     let rescueLines=[];
     if(p.ownedGear.includes('ultimaweapon') && p.flags.cursed && GEAR[p.equip.weapon]?.cursed){
@@ -2509,24 +2522,33 @@ const game = {
         `${wn}の のろいが とけた！ そうびを かえられるように なった。`,
       ];
     }
+    // アルテマウェーイ：撃破ごとに必ず1個入手（1回目から）。100個で武器強化
+    p.flags.ultimaWeii=(p.flags.ultimaWeii||0)+1;
+    const weiiCount=p.flags.ultimaWeii;
+    const getsEvolveWeapon = weiiCount>=100 && !p.flags.ultimaWeaponEvolved && p.ownedGear.includes('ultimaweapon');
+    if(getsEvolveWeapon) p.flags.ultimaWeaponEvolved=true;
     let lines;
     if(first){
-      p.maxHp+=50; p.hp=p.maxHp; p.baseAtk+=10; p.baseDef+=10;
+      // 初回撃破：アルテマウェポン本体＋アルテマウェーイ1個目を入手（ステータス上昇は廃止）
+      p.ownedGear.push('ultimaweapon');
       lines=[
         'りゅうおう アビスは、しずかに ちからを うしなって いった──',
         'アビス「みごと だ…なんじこそ まことの えいゆう。」',
-        'さいだいHPが 50 あがり、こうげき・ぼうぎょが 10 ずつ あがった！',
+        'アビス「これを わたそう。せかいの ことわりを やどす けん「アルテマウェポン」だ。」',
+        '「アルテマウェポン」を てに いれた！',
+        'こうげきりょくの かんねんは ない。レベルと どうすうの こていダメージを あたえる。',
+        'ときどき さいだい20れんげき！ 1かいの こうげきごとに MPを レベルの20%しょうひする。',
+        'MPが たりなければ ぶんしんの HPで だいよう できる（りょうほう なければ こうげき できない）。',
         'アビス「……だが これで おわりでは ない。」',
-        'アビス「もう いちど われを たおせるなら、しんの ちからを さずけよう。」',
-        'アビス「なんど でも よみがえる。さらに つよく なって な。」',
+        'アビス「われを たおすたび、アルテマウェーイを わたそう。100こ あつまれば、けんが しんかするぞ。」',
+        'アビス「なんど でも よみがえる。さあ かかって くるが よい。」',
+        `アルテマウェーイを 1こ てに いれた！（${weiiCount}/100）`,
         ...rescueLines,
       ];
     } else {
-      p.maxHp+=20; p.hp=p.maxHp; p.baseAtk+=5; p.baseDef+=5;
       lines=[
         `さらに つよき アビス（${clears}かいめ）を うちやぶった！`,
         'アビス「…みごと。なんじの つよさ、みとめよう。」',
-        'さいだいHP+20、こうげき・ぼうぎょ+5！',
       ];
       if(getsArmor){
         p.ownedGear.push('mysticarmor'); p.flags.armorLevel=0;
@@ -2551,29 +2573,20 @@ const game = {
           lines.push(`ぶんしん${lv+1}たいめが つよく なった！（よろい＋${lv}）`);
         }
       } else if(p.ownedGear.includes('mysticarmor')){
-        // 次の進化のヒント
         const nextAt = 10 + (curLevel+1)*10;
         if(clears < nextAt) lines.push(`アビス「${nextAt-clears}かい たおせば よろいが さらに つよくなるぞ。」`);
         else lines.push('アビス「だが つぎは もっと つよく なって もどる。」');
       }
-      // アルテマウェポン入手（よろい進化と別枠で常に判定）
-      if(getsUltimaWeapon){
-        p.ownedGear.push('ultimaweapon');
-        lines.push('アビス「…もう なんども われを たおした。」');
-        lines.push('アビス「これを わたそう。せかいの ことわりを やどす けん「アルテマウェポン」だ。」');
-        lines.push('「アルテマウェポン」を てに いれた！');
-        lines.push('こうげきりょくは レベルの2ばい。ときどき 8〜16れんげき！');
-        lines.push('れんげきの たびに MPを しょうひする（デコイの HP でも だいよう できる）。');
-        // 呪われた武器を装備中なら、ここで呪いを解いてもらう（アルテマウェポンへの持ち替えを可能にする）
-        const curWeapon=p.equip.weapon;
-        if(GEAR[curWeapon]?.cursed){
-          p.flags.cursed=false;
-          const wn=GEAR[curWeapon].name;
-          lines.push(`アビス「その ${wn}に かけられた のろいは、われが はらって やろう。」`);
-          lines.push(`${wn}の のろいが とけた！ そうびを かえられるように なった。`);
-        }
-      } else {
-        lines.push(...rescueLines);
+      lines.push(...rescueLines);
+      // アルテマウェーイの入手・強化判定
+      lines.push(`アルテマウェーイを 1こ てに いれた！（${Math.min(weiiCount,100)}/100）`);
+      if(getsEvolveWeapon){
+        lines.push('アルテマウェポンが まばゆく ひかりはじめた…！');
+        lines.push('「アルテマウェポン」が しんかした！');
+        lines.push('こていダメージが レベルの2ばいに なった！');
+      } else if(!p.flags.ultimaWeaponEvolved && p.ownedGear.includes('ultimaweapon')){
+        const left=100-weiiCount;
+        lines.push(`アビス「あと ${left}こ あつめれば、けんが しんかするぞ。」`);
       }
       lines.push(`これまでの げきはかいすう：${clears}かい`);
     }
@@ -3003,8 +3016,13 @@ const game = {
     const owned=p.ownedGear.filter(g=>GEAR[g].slot===slot);
     this.cmdItems=owned.map(g=>{
       const ge=GEAR[g];
-      const atkVal = ge.ultima ? (p.lv*2) : ge.atk; // アルテマウェポンはレベル×2を表示
-      const val=slot==='weapon'?`こうげき+${atkVal}`:`しゅび+${ge.def}`;
+      let val;
+      if(ge.ultima){
+        const fixedDmg = p.flags.ultimaWeaponEvolved ? p.lv*2 : p.lv;
+        val=`こていダメージ${fixedDmg}`;
+      } else {
+        val=slot==='weapon'?`こうげき+${ge.atk}`:`しゅび+${ge.def}`;
+      }
       const cur=p.equip[slot]===g?'▶':'　';
       return {label:`${cur}${ge.name} ${val}`,act:()=>this.doEquip(slot,g)};
     });
@@ -3172,7 +3190,7 @@ const game = {
   ====================================================================== */
   weaponAtk(){
     const w=this.p.equip.weapon;
-    if(GEAR[w]?.ultima) return this.p.lv*2; // アルテマウェポン：攻撃力=レベルの200%
+    if(GEAR[w]?.ultima) return 0; // アルテマウェポン：攻撃力という概念はない（固定ダメージは別処理）
     return GEAR[w]?.atk||0;
   },
   armorDef(){ return GEAR[this.p.equip.armor]?.def||0; },
@@ -3880,6 +3898,7 @@ const game = {
   },
   // ブルトガングの多段攻撃を1ヒットずつ処理（ダメージ→回復 を回数分）
   // アルテマウェポン専用攻撃：時々8〜16連撃。1撃ごとに勇者MP（不足ならデコイHP）を消費
+  // アルテマウェポン専用攻撃：レベル(強化後はレベル×2)の固定ダメージ。最大20連撃。MP（不足時はデコイHP）を1回ごとに消費し、尽きたら終了
   doUltimaAttack(actor, target){
     if(!target||!target.alive) target=this.aliveEnemies()[0];
     if(!target){ this.cont(); return; }
@@ -3889,18 +3908,21 @@ const game = {
       const decoy=this.allies.find(d=>d.isDecoy && d.alive && d.hp>=mpCostPerHit);
       return !!decoy;
     };
-    // 連撃が発動するか（30%）。発動条件：最初の1撃分のリソースがあること
-    const burstReady = hasResource();
-    const hits = (burstReady && Math.random()<0.30) ? this.randi(8,16) : 1;
+    // 最初の1撃分のリソースがなければ「攻撃できない」と表示して終了
+    if(!hasResource()){
+      this.message(['アルテマウェポンが ちいさく ひかっている…','MPが たりなくて こうげき できない！'],()=>this.cont());
+      return;
+    }
+    const hits=this.randi(1,20); // 最大20連撃（ランダムで何回出るか決まる。リソース切れでも打ち切り）
     this._ultimaHit(actor, target, hits, 1, mpCostPerHit);
   },
   _ultimaHit(actor, target, hits, n, mpCostPerHit){
     if(this.aliveEnemies().length===0){ this.cont(); return; }
     if(!target||!target.alive) target=this.aliveEnemies()[0];
     if(!target){ this.cont(); return; }
-    // リソース消費判定：勇者MP優先→不足ならデコイHPで代替→両方不足なら攻撃力10固定
+    // リソース消費判定：勇者MP優先→不足ならデコイHPで代替→両方不足ならここで連撃終了
     let resourceLine='';
-    let useWeak=false;
+    let outOfResource=false;
     if(actor.mp>=mpCostPerHit){
       actor.mp-=mpCostPerHit;
     } else {
@@ -3910,26 +3932,25 @@ const game = {
         resourceLine=`\n（${decoy.name}の HPを ${mpCostPerHit} しょうひ）`;
         if(decoy.hp<=0){ decoy.alive=false; resourceLine+=`\n${decoy.name}は きえた…`; }
       } else {
-        useWeak=true; // 勇者MPもデコイHPも足りない→攻撃力10固定
+        outOfResource=true;
       }
     }
-    const head = (n===1) ? `${actor.name}の こうげき！（アルテマウェポン）${hits>1?`（${hits}れんげき！）`:''}\n` : '';
-    const crit=Math.random()<this.critChance(actor);
-    let dmg;
-    if(useWeak){
-      dmg=10; // MP・デコイHPともに不足→攻撃力10固定
-    } else {
-      dmg=Math.max(1, actor.atk-target.def+this.randi(-2,2));
-      if(crit) dmg=Math.round(dmg*1.8);
-      if(actor._strengthMult>1) dmg=Math.round(dmg*actor._strengthMult);
-      if(this.furyActive(actor)){ dmg=Math.round(dmg*2); if(n===1) this.fxFuryOn(); }
+    if(outOfResource){
+      // リソースが尽きた→ここで連撃終了（n回目は撃たずに終わる）
+      this.renderParty();
+      this.message([`アルテマウェポンの ちからが きれた…！\n（${n-1}れんげきで しゅうりょう）`],()=>{ this.renderEnemies(); this.cont(); });
+      return;
     }
+    // 攻撃力の概念はない：レベル（強化後はレベル×2）の固定ダメージ
+    const evolved=this.p.flags.ultimaWeaponEvolved;
+    const dmg=evolved ? this.p.lv*2 : this.p.lv;
+    const head = (n===1) ? `${actor.name}の こうげき！（アルテマウェポン）\n` : '';
     // 青い発光エフェクト
     this.fxUltimaFlash();
-    audio.se('hit'); this.flashEnemyOn(target.slot); this.fxTextOn('enemy',target.slot,dmg,crit?'crit':'');
+    audio.se('hit'); this.flashEnemyOn(target.slot); this.fxTextOn('enemy',target.slot,dmg,'');
     target.hp-=dmg;
     if(target.hp<=0 && target.form2 && !target.transformed){
-      this.transformBoss(target, `${head}${n}かいめ：${target.name}に ${dmg}の ダメージ！${resourceLine}`); return;
+      this.transformBoss(target, `${head}${n}かいめ：${target.name}に こていダメージ ${dmg}！${resourceLine}`); return;
     }
     let killed=false;
     if(target.hp<=0){ target.alive=false; killed=true; this.questProgress(target.key);
@@ -3940,11 +3961,9 @@ const game = {
       const bar=node&&node.querySelector('.b-uhp i'); if(bar) bar.style.width=Math.max(0,target.hp/target.maxHp*100)+'%';
     }
     this.renderParty();
-    const weakLine=useWeak?'\n（ちからが でない…こうげきりょく10）':'';
-    const dmgLine=`${head}${n}かいめ：${target.name}に ${dmg}の ダメージ！${crit?'（かいしん！）':''}${killed?`\n${target.name}を たおした！`:''}${resourceLine}${weakLine}`;
+    const dmgLine=`${head}${n}かいめ：${target.name}に こていダメージ ${dmg}！${killed?`\n${target.name}を たおした！`:''}${resourceLine}`;
     this.message([dmgLine],()=>{
-      // 次の敵がいない・リソースが完全に尽きたら終了
-      if(n<hits && this.aliveEnemies().length>0 && !(useWeak && actor.mp<mpCostPerHit && !this.allies.some(d=>d.isDecoy&&d.alive&&d.hp>=mpCostPerHit))){
+      if(n<hits && this.aliveEnemies().length>0){
         this.renderEnemies(); this._ultimaHit(actor, target, hits, n+1, mpCostPerHit);
       } else { this.renderEnemies(); this.cont(); }
     });
