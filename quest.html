@@ -933,7 +933,7 @@ function freshPlayer(){
 
 const SAVE_KEY='aldia_save_v2';
 const MSGSPD_KEY='aldia_msgspeed';
-const GAME_VERSION='5.8';            // このHTMLのバージョン。公開時にversion.jsonと揃える
+const GAME_VERSION='5.9';            // このHTMLのバージョン。公開時にversion.jsonと揃える
 
 // ストレージ互換層: Artifact環境では window.storage、通常ブラウザでは localStorage
 const STORE = {
@@ -2560,6 +2560,13 @@ const game = {
           lines.push(`アビス「その ${wn}に かけられた のろいは、われが はらって やろう。」`);
           lines.push(`${wn}の のろいが とけた！ そうびを かえられるように なった。`);
         }
+      } else if(p.ownedGear.includes('ultimaweapon') && p.flags.cursed && GEAR[p.equip.weapon]?.cursed){
+        // 既にアルテマウェポンを持っているのに呪いが解けていない既存セーブの救済
+        p.flags.cursed=false;
+        const wn=GEAR[p.equip.weapon].name;
+        lines.push(`アビス「おお…まだ その ${wn}の のろいが とけて いなかったか。」`);
+        lines.push('アビス「すまぬ すまぬ。いま すぐ はらって やろう。」');
+        lines.push(`${wn}の のろいが とけた！ そうびを かえられるように なった。`);
       }
       lines.push(`これまでの げきはかいすう：${clears}かい`);
     }
